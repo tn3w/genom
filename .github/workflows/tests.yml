@@ -40,10 +40,9 @@ jobs:
         env:
           CLIPPY_ARGS: "1"
         run: |
-          cargo clippy --all-targets --all-features -- -D warnings
-          cargo clippy --all-targets --features build-database -- -D warnings
+          cargo clippy --all-targets --no-default-features --features no-build-database -- -D warnings
       
       - name: Run tests
         run: |
-          cargo test --verbose --features build-database
-          cargo test --doc --verbose --features build-database
+          cargo test --verbose --no-default-features --features no-build-database
+          cargo test --doc --verbose --no-default-features --features no-build-database

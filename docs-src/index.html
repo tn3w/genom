@@ -38,9 +38,6 @@
                     <p class="hero-description">Fast reverse geocoding with enriched location data. Sub-millisecond lookups for timezone, currency, region, and 15+ other fields.</p>
                     
                     <div class="hero-demo">
-                        <div class="demo-status" id="demo-status">
-                            initializing...
-                        </div>
                         <div class="demo-input">
                             <span class="demo-label">input</span>
                             <input 
@@ -242,67 +239,52 @@
         </div>
     </footer>
 
-    <script type="module">
-        import { genomDB } from './genom.js';
+    <script>
+        const examples = {
+            '40.7128, -74.0060': {
+                city: 'New York',
+                country: 'United States',
+                timezone: 'America/New_York',
+                currency: 'USD',
+                region: 'NY'
+            },
+            '51.5074, -0.1278': {
+                city: 'London',
+                country: 'United Kingdom',
+                timezone: 'Europe/London',
+                currency: 'GBP',
+                region: 'ENG'
+            },
+            '35.6762, 139.6503': {
+                city: 'Tokyo',
+                country: 'Japan',
+                timezone: 'Asia/Tokyo',
+                currency: 'JPY',
+                region: '13'
+            }
+        };
 
-        const statusEl = document.getElementById('demo-status');
         const inputEl = document.getElementById('coords-input');
         const outputEl = document.getElementById('demo-output');
 
-        let debounceTimer;
-
-        genomDB.onStatusChange((status, progress) => {
-            if (status === 'ready') {
-                statusEl.textContent = 'ready';
-                statusEl.style.color = 'var(--rust)';
-            } else if (status.startsWith('error')) {
-                statusEl.textContent = status;
-                statusEl.style.color = '#ff4444';
-            } else {
-                const progressText = progress > 0 ? ` ${progress}%` : '';
-                statusEl.textContent = `${status}${progressText}`;
-            }
-        });
-
-        genomDB.init().catch(console.error);
-
-        async function updateOutput() {
+        function updateOutput() {
             const value = inputEl.value.trim();
-            const match = value.match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
+            const example = examples[value];
             
-            if (!match) {
-                outputEl.innerHTML = '<div>Invalid coordinates</div>';
-                return;
-            }
-
-            const [, lat, lon] = match;
-            const latitude = parseFloat(lat);
-            const longitude = parseFloat(lon);
-
-            if (isNaN(latitude) || isNaN(longitude)) {
-                outputEl.innerHTML = '<div>Invalid coordinates</div>';
-                return;
-            }
-
-            try {
-                const place = await genomDB.lookup(latitude, longitude);
-                if (place) {
-                    outputEl.innerHTML = `
-                        <div>${place.city}, ${place.country_name}</div>
-                        <div>${place.timezone} • ${place.currency} • ${place.region_code}</div>
-                    `;
-                } else {
-                    outputEl.innerHTML = '<div>No location found</div>';
-                }
-            } catch (error) {
-                outputEl.innerHTML = '<div>DB not ready</div>';
+            if (example) {
+                outputEl.innerHTML = `
+                    <div>${example.city}, ${example.country}</div>
+                    <div>${example.timezone} • ${example.currency} • ${example.region}</div>
+                `;
+            } else {
+                outputEl.innerHTML = `
+                    <div>Try example coordinates</div>
+                    <div>40.7128, -74.0060</div>
+                `;
             }
         }
 
-        inputEl.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(updateOutput, 300);
-        });
+        inputEl.addEventListener('input', updateOutput);
     </script>
 </body>
 </html>

@@ -22,20 +22,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Build WASM
-        run: |
-          cd wasm
-          wasm-pack build --target web --out-dir ../docs-src \
-            --no-default-features
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
@@ -51,7 +37,6 @@ jobs:
         run: |
           mkdir -p docs
           cp -r docs-src/* docs/
-          rm -f docs/places.bin.xz
           
           VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
           find docs -name "*.html" -exec sed -i "s|VERSION|v${VERSION}|g" {} \;

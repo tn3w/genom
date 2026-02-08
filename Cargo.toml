@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "wasm"]
+members = ["."]
 
 [package]
 name = "genom"
@@ -18,8 +18,7 @@ exclude = ["data/", "target/"]
 
 [features]
 default = []
-wasm = []
-build-database = []
+no-build-database = []
 
 [dependencies]
 bincode = "2.0"
