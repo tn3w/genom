@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>genom — reverse geocoding</title>
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;700&family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-wrapper">
+                <img src="logo.webp" alt="genom" class="logo">
+                <span class="logo-text">genom</span>
+            </div>
+            <nav>
+                <a href="#features">features</a>
+                <a href="#install">install</a>
+                <a href="https://genom.tn3w.dev/docs">docs</a>
+                <a href="https://github.com/tn3w/genom">github</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <div class="hero-badge">rust geocoding library</div>
+                    <h1>
+                        <span class="word" style="animation-delay: 0s">turn</span>
+                        <span class="word" style="animation-delay: 0.1s">coordinates</span>
+                        <span class="word" style="animation-delay: 0.2s">into</span>
+                        <span class="word accent" style="animation-delay: 0.3s">context</span>
+                    </h1>
+                    <p class="hero-description">Fast reverse geocoding with enriched location data. Sub-millisecond lookups for timezone, currency, region, and 15+ other fields.</p>
+                    
+                    <div class="hero-demo">
+                        <div class="demo-status" id="demo-status">
+                            initializing...
+                        </div>
+                        <div class="demo-input">
+                            <span class="demo-label">input</span>
+                            <input 
+                                type="text" 
+                                class="demo-coords-input" 
+                                id="coords-input"
+                                placeholder="40.7128, -74.0060"
+                                value="40.7128, -74.0060"
+                            />
+                        </div>
+                        <div class="demo-arrow">→</div>
+                        <div class="demo-output">
+                            <span class="demo-label">output</span>
+                            <div class="demo-data" id="demo-output">
+                                <div>New York, United States</div>
+                                <div>America/New_York • USD • NY</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hero-actions">
+                        <a href="#install" class="btn-primary">get started</a>
+                        <div class="hero-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">&lt;1ms</span>
+                                <span class="stat-label">lookup</span>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <span class="stat-value">18+</span>
+                                <span class="stat-label">fields</span>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <span class="stat-value">0</span>
+                                <span class="stat-label">config</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="container">
+                <div class="section-header">
+                    <h2>why genom</h2>
+                    <p>built for developers who need speed and precision</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>blazing fast</h3>
+                        <p>Grid-based spatial indexing delivers consistent sub-millisecond performance. Optimized binary format with string interning keeps memory usage minimal.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>rich data</h3>
+                        <p>18+ fields per location including timezone, currency, postal code, region, continent, EU membership, and DST status. Everything you need in one call.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔧</div>
+                        <h3>zero setup</h3>
+                        <p>Database builds automatically on first install. No downloads, no configuration files, no external dependencies. Just add and use.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🧵</div>
+                        <h3>thread-safe</h3>
+                        <p>Global singleton with lazy initialization. Lock-free reads mean zero contention in multi-threaded applications. Safe by default.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="install" class="install">
+            <div class="container">
+                <div class="install-content">
+                    <div class="install-left">
+                        <h2>installation</h2>
+                        <p>Add genom to your Cargo.toml and start converting coordinates to location data immediately.</p>
+                        <div class="install-steps">
+                            <div class="step">
+                                <div class="step-num">1</div>
+                                <div class="step-text">Add dependency</div>
+                            </div>
+                            <div class="step">
+                                <div class="step-num">2</div>
+                                <div class="step-text">Import library</div>
+                            </div>
+                            <div class="step">
+                                <div class="step-num">3</div>
+                                <div class="step-text">Start looking up</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="install-right">
+                        <div class="code-window">
+                            <div class="code-header">
+                                <div class="code-dots">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                                <div class="code-title">Cargo.toml</div>
+                            </div>
+                            <pre><code><span class="c-bracket">[</span><span class="c-key">dependencies</span><span class="c-bracket">]</span>
+<span class="c-key">genom</span> <span class="c-op">=</span> <span class="c-string">"0.1"</span></code></pre>
+                        </div>
+                        <div class="code-window">
+                            <div class="code-header">
+                                <div class="code-dots">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                                <div class="code-title">main.rs</div>
+                            </div>
+                            <pre><code><span class="c-keyword">use</span> genom;
+
+<span class="c-keyword">let</span> place <span class="c-op">=</span> genom<span class="c-op">::</span><span class="c-fn">lookup</span>(<span class="c-num">40.7128</span>, <span class="c-num">-74.0060</span>)<span class="c-op">?</span>;
+<span class="c-fn">println!</span>(<span class="c-string">"{}"</span>, place.timezone);</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="data-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>complete location data</h2>
+                    <p>every field you need, returned in microseconds</p>
+                </div>
+                
+                <div class="data-showcase">
+                    <div class="data-category">
+                        <h4>location</h4>
+                        <div class="data-tags">
+                            <span>city</span>
+                            <span>region</span>
+                            <span>region_code</span>
+                            <span>district</span>
+                            <span>postal_code</span>
+                        </div>
+                    </div>
+                    <div class="data-category">
+                        <h4>geography</h4>
+                        <div class="data-tags">
+                            <span>country_code</span>
+                            <span>country_name</span>
+                            <span>continent_code</span>
+                            <span>continent_name</span>
+                            <span>is_eu</span>
+                        </div>
+                    </div>
+                    <div class="data-category">
+                        <h4>time & currency</h4>
+                        <div class="data-tags">
+                            <span>timezone</span>
+                            <span>timezone_abbr</span>
+                            <span>utc_offset</span>
+                            <span>dst_active</span>
+                            <span>currency</span>
+                        </div>
+                    </div>
+                    <div class="data-category">
+                        <h4>coordinates</h4>
+                        <div class="data-tags">
+                            <span>latitude</span>
+                            <span>longitude</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.webp" alt="genom" class="footer-logo">
+                    <p>Fast reverse geocoding for Rust</p>
+                    <p class="footer-license">Apache-2.0 License</p>
+                </div>
+                <div class="footer-col">
+                    <h4>resources</h4>
+                    <a href="https://genom.tn3w.dev/docs">documentation</a>
+                    <a href="https://crates.io/crates/genom">crates.io</a>
+                    <a href="https://github.com/tn3w/genom">github</a>
+                </div>
+                <div class="footer-col">
+                    <h4>data</h4>
+                    <a href="https://www.geonames.org/">geonames</a>
+                    <a href="https://github.com/tn3w/genom/issues">report issue</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { genomDB } from './genom.js';
+
+        const statusEl = document.getElementById('demo-status');
+        const inputEl = document.getElementById('coords-input');
+        const outputEl = document.getElementById('demo-output');
+
+        let debounceTimer;
+
+        genomDB.onStatusChange((status, progress) => {
+            if (status === 'ready') {
+                statusEl.textContent = 'ready';
+                statusEl.style.color = 'var(--rust)';
+            } else if (status.startsWith('error')) {
+                statusEl.textContent = status;
+                statusEl.style.color = '#ff4444';
+            } else {
+                const progressText = progress > 0 ? ` ${progress}%` : '';
+                statusEl.textContent = `${status}${progressText}`;
+            }
+        });
+
+        genomDB.init().catch(console.error);
+
+        async function updateOutput() {
+            const value = inputEl.value.trim();
+            const match = value.match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
+            
+            if (!match) {
+                outputEl.innerHTML = '<div>Invalid coordinates</div>';
+                return;
+            }
+
+            const [, lat, lon] = match;
+            const latitude = parseFloat(lat);
+            const longitude = parseFloat(lon);
+
+            if (isNaN(latitude) || isNaN(longitude)) {
+                outputEl.innerHTML = '<div>Invalid coordinates</div>';
+                return;
+            }
+
+            try {
+                const place = await genomDB.lookup(latitude, longitude);
+                if (place) {
+                    outputEl.innerHTML = `
+                        <div>${place.city}, ${place.country_name}</div>
+                        <div>${place.timezone} • ${place.currency} • ${place.region_code}</div>
+                    `;
+                } else {
+                    outputEl.innerHTML = '<div>No location found</div>';
+                }
+            } catch (error) {
+                outputEl.innerHTML = '<div>DB not ready</div>';
+            }
+        }
+
+        inputEl.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(updateOutput, 300);
+        });
+    </script>
+</body>
+</html>

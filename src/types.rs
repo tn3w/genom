@@ -51,7 +51,7 @@ impl Location {
 }
 
 #[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub(crate) struct CompactPlace {
+pub struct CompactPlace {
     pub city: u32,
     pub region: u32,
     pub region_code: u32,
@@ -73,7 +73,7 @@ impl CompactPlace {
 }
 
 #[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub(crate) struct Database {
+pub struct Database {
     pub strings: Vec<String>,
     pub places: Vec<CompactPlace>,
     pub grid: rustc_hash::FxHashMap<(i16, i16), Vec<u32>>,
