@@ -3,7 +3,12 @@ use crate::types::{Database, Location, Place};
 use std::sync::OnceLock;
 
 static GEOCODER: OnceLock<Geocoder> = OnceLock::new();
+
+#[cfg(not(any(doc, clippy)))]
 static DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/places.bin"));
+
+#[cfg(any(doc, clippy))]
+static DATA: &[u8] = &[];
 
 pub struct Geocoder {
     db: Database,
