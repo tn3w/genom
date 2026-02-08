@@ -782,24 +782,142 @@ footer::before {
     left: 0;
 }
 
-@media (max-width: 768px) {
+/* Mobile Responsive Styles */
+@media (max-width: 1024px) {
+    .container {
+        padding: 0 2rem;
+    }
+    
     .hero h1 {
-        font-size: 3.5rem;
-    }
-    
-    .hero-demo {
-        flex-direction: column;
-    }
-    
-    .features-grid {
-        grid-template-columns: 1fr;
+        font-size: 4.5rem;
     }
     
     .install-content {
         grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1.5rem;
     }
     
+    .hero {
+        padding: 5rem 0 6rem;
+    }
+    
+    .hero h1 {
+        font-size: 2.8rem;
+        gap: 0.5rem;
+    }
+    
+    .hero-description {
+        font-size: 1.05rem;
+    }
+    
+    .hero-demo {
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 2rem 1.5rem;
+    }
+    
+    .demo-arrow {
+        transform: rotate(90deg);
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+        gap: 2rem;
+        width: 100%;
+    }
+    
+    .btn-primary {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .hero-stats {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .features, .install, .data-section {
+        padding: 6rem 0;
+    }
+    
+    .section-header h2 {
+        font-size: 2.5rem;
+    }
+    
+    .features-grid,
     .data-showcase {
         grid-template-columns: 1fr;
+    }
+    
+    .feature-card {
+        padding: 2.5rem;
+    }
+    
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        text-align: center;
+    }
+    
+    .footer-brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        grid-column: 1 / -1;
+    }
+    
+    .footer-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .footer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+    
+    .footer-col a {
+        padding-left: 0 !important;
+    }
+    
+    .footer-col a::before {
+        display: none;
+    }
+}
+
+@media (max-width: 600px) {
+    nav a:nth-child(1),
+    nav a:nth-child(2) {
+        display: none;
+    }
+    
+    .hero h1 {
+        font-size: 2.2rem;
+    }
+    
+    .stat-divider {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 1.25rem;
+    }
+    
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+    
+    .section-header h2 {
+        font-size: 2rem;
     }
 }

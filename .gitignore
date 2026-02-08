@@ -25,6 +25,3 @@ Cargo.lock
 .vscode/
 
 data/
-
-docs-src/genom_wasm*
-docs-src/package.json
