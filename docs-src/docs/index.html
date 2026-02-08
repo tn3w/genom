@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>genom - Rust</title>
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo-section">
+                    <img src="../logo.webp" alt="Genom" class="logo-icon">
+                    <div class="logo-info">
+                        <div class="logo-title">genom</div>
+                        <div class="logo-version">vVERSION</div>
+                    </div>
+                </a>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-title">Crate genom</div>
+                    <a href="#crate-overview" class="nav-link">Overview</a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-title">Modules</div>
+                    <a href="#mod-enrichment" class="nav-link">enrichment</a>
+                    <a href="#mod-types" class="nav-link">types</a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-title">Structs</div>
+                    <a href="#struct-Geocoder" class="nav-link">Geocoder</a>
+                    <a href="#struct-Place" class="nav-link">Place</a>
+                    <a href="#struct-Location" class="nav-link">Location</a>
+                    <a href="#struct-CompactPlace" class="nav-link">CompactPlace</a>
+                    <a href="#struct-Database" class="nav-link">Database</a>
+                    <a href="#struct-PlaceInput" class="nav-link">PlaceInput</a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-title">Functions</div>
+                    <a href="#fn-lookup" class="nav-link">lookup</a>
+                    <a href="#fn-enrich_place" class="nav-link">enrich_place</a>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <div class="content-inner">
+                <section id="crate-overview" class="doc-section">
+                    <h1 class="page-title">Crate genom</h1>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Fast reverse geocoding library with enriched location data. Convert coordinates to detailed place information including timezone, currency, region, and more.
+                        </p>
+
+                        <h2>Features</h2>
+                        <ul>
+                            <li><strong>Simple API</strong> - Single function call: <code><a href="#fn-lookup">genom::lookup(lat, lon)</a></code></li>
+                            <li><strong>Rich Data</strong> - Returns 16+ fields including timezone, currency, postal code, region</li>
+                            <li><strong>Fast Lookups</strong> - Grid-based spatial indexing for sub-millisecond queries</li>
+                            <li><strong>Zero Config</strong> - Database builds automatically on first install</li>
+                            <li><strong>Thread-Safe</strong> - Global singleton with lazy initialization</li>
+                            <li><strong>Compact</strong> - Efficient binary format with string interning</li>
+                        </ul>
+
+                        <h2>Quick Start</h2>
+                        <div class="code-example">
+<pre><span class="keyword">use</span> genom;
+
+<span class="keyword">fn</span> <span class="fn-name">main</span>() {
+    <span class="comment">// Lookup coordinates</span>
+    <span class="keyword">if let</span> <span class="keyword">Some</span>(place) = genom::<span class="fn-name">lookup</span>(<span class="number">40.7128</span>, <span class="number">-74.0060</span>) {
+        <span class="macro">println!</span>(<span class="string">"{}, {}"</span>, place.city, place.country_name);
+        <span class="comment">// Output: New York, United States</span>
+    }
+}</pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mod-enrichment" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Module</span>
+                        enrichment
+                    </h1>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Data enrichment module that adds computed fields to raw geographic data.
+                        </p>
+                        <p>
+                            This module provides functionality to enrich basic place data with additional information such as:
+                        </p>
+                        <ul>
+                            <li>Country names from ISO codes</li>
+                            <li>Currency codes by country</li>
+                            <li>Continent information</li>
+                            <li>EU membership status</li>
+                            <li>Timezone calculations (offset, abbreviation, DST status)</li>
+                        </ul>
+                        <p>
+                            All enrichment data is stored in static lazy-initialized hash maps for efficient lookup.
+                        </p>
+                    </div>
+                </section>
+
+                <section id="mod-types" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Module</span>
+                        types
+                    </h1>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Core data structures for geographic information.
+                        </p>
+                        <p>
+                            This module defines the fundamental types used throughout the library:
+                        </p>
+                        <ul>
+                            <li><a href="#struct-Place"><code>Place</code></a> - Enriched output with complete geographic context</li>
+                            <li><a href="#struct-Location"><code>Location</code></a> - Simple coordinate pair with distance calculations</li>
+                            <li><a href="#struct-CompactPlace"><code>CompactPlace</code></a> - Compressed storage format using string table indices</li>
+                            <li><a href="#struct-Database"><code>Database</code></a> - Complete spatial database with grid index</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="struct-Geocoder" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        Geocoder
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">Geocoder</span> { <span class="comment">/* private fields */</span> }</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            The core geocoding engine. Manages the spatial database and performs coordinate lookups.
+                        </p>
+                        
+                        <h2>Conceptual Role</h2>
+                        <p>
+                            <code>Geocoder</code> is the transport layer for all geographic queries. It handles:
+                        </p>
+                        <ul>
+                            <li>Database initialization and decompression</li>
+                            <li>Grid-based spatial indexing for O(1) lookups</li>
+                            <li>Nearest-neighbor search across grid cells</li>
+                            <li>String table resolution for compact storage</li>
+                        </ul>
+
+                        <h2>What This Type Does NOT Do</h2>
+                        <ul>
+                            <li>Data enrichment (handled by <a href="#mod-enrichment">enrichment</a> module)</li>
+                            <li>Distance calculations (delegated to <a href="#struct-Location">Location</a> type)</li>
+                            <li>Thread synchronization (uses <code>OnceLock</code> for initialization)</li>
+                        </ul>
+
+                        <h2>Invariants</h2>
+                        <ul>
+                            <li>After construction, the database is fully loaded and valid</li>
+                            <li>Grid keys are consistent with coordinate quantization</li>
+                            <li>String indices in <a href="#struct-CompactPlace">CompactPlace</a> are valid into strings vector</li>
+                        </ul>
+
+                        <h2>Thread Safety</h2>
+                        <p>
+                            <code>Geocoder</code> is <code>Send</code> but not <code>Sync</code>. However, the global instance
+                            accessed via <a href="#method-global"><code>Geocoder::global()</code></a> is safe to use from multiple threads
+                            because all operations are read-only after initialization.
+                        </p>
+                    </div>
+
+                    <h2 class="impl-title">Implementations</h2>
+                    
+                    <div class="impl-block">
+                        <h3 id="method-global" class="method-title">
+                            <span class="item-kind">pub fn</span>
+                            <span class="method-name">global</span>() → &'static Self
+                        </h3>
+                        <div class="doc-block">
+                            <p class="doc-summary">
+                                Returns a reference to the global geocoder singleton.
+                            </p>
+                            
+                            <h4>Initialization</h4>
+                            <p>
+                                First call initializes the database by decompressing the embedded binary data.
+                                Subsequent calls return the cached instance. Initialization is thread-safe via <code>OnceLock</code>.
+                            </p>
+                            
+                            <h4>Panics</h4>
+                            <p>
+                                Panics if database initialization fails (corrupted data, out of memory).
+                                This is intentional - the library cannot function without a valid database.
+                            </p>
+
+                            <h4>Examples</h4>
+                            <div class="code-example">
+<pre><span class="keyword">use</span> genom::Geocoder;
+
+<span class="keyword">let</span> geocoder = Geocoder::<span class="fn-name">global</span>();
+<span class="keyword">let</span> place = geocoder.<span class="fn-name">lookup</span>(<span class="number">51.5074</span>, <span class="number">-0.1278</span>);</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="impl-block">
+                        <h3 id="method-lookup" class="method-title">
+                            <span class="item-kind">pub fn</span>
+                            <span class="method-name">lookup</span>(&self, latitude: f64, longitude: f64) → Option&lt;<a href="#struct-Place">Place</a>&gt;
+                        </h3>
+                        <div class="doc-block">
+                            <p class="doc-summary">
+                                Finds the nearest place to the given coordinates.
+                            </p>
+                            
+                            <h4>Algorithm</h4>
+                            <ol>
+                                <li>Quantize coordinates to grid key (0.1° resolution)</li>
+                                <li>Search target cell and 8 neighboring cells</li>
+                                <li>Calculate haversine distance to all candidates</li>
+                                <li>Return nearest place, enriched with metadata</li>
+                            </ol>
+                            
+                            <h4>Returns</h4>
+                            <p>
+                                <code>Some(Place)</code> if a location is found within search radius, <code>None</code> otherwise.
+                                Ocean coordinates typically return <code>None</code> unless near coastal cities.
+                            </p>
+
+                            <h4>Examples</h4>
+                            <div class="code-example">
+<pre><span class="keyword">use</span> genom::Geocoder;
+
+<span class="keyword">let</span> geocoder = Geocoder::<span class="fn-name">global</span>();
+
+<span class="comment">// Paris, France</span>
+<span class="keyword">let</span> place = geocoder.<span class="fn-name">lookup</span>(<span class="number">48.8566</span>, <span class="number">2.3522</span>).<span class="fn-name">unwrap</span>();
+<span class="macro">assert_eq!</span>(place.city, <span class="string">"Paris"</span>);
+<span class="macro">assert_eq!</span>(place.country_code, <span class="string">"FR"</span>);</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="struct-Place" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        Place
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">Place</span> {
+    <span class="keyword">pub</span> city: <span class="type">String</span>,
+    <span class="keyword">pub</span> region: <span class="type">String</span>,
+    <span class="keyword">pub</span> region_code: <span class="type">String</span>,
+    <span class="keyword">pub</span> district: <span class="type">String</span>,
+    <span class="keyword">pub</span> country_code: <span class="type">String</span>,
+    <span class="keyword">pub</span> country_name: <span class="type">String</span>,
+    <span class="keyword">pub</span> postal_code: <span class="type">String</span>,
+    <span class="keyword">pub</span> timezone: <span class="type">String</span>,
+    <span class="keyword">pub</span> timezone_abbr: <span class="type">String</span>,
+    <span class="keyword">pub</span> utc_offset: <span class="type">i32</span>,
+    <span class="keyword">pub</span> utc_offset_str: <span class="type">String</span>,
+    <span class="keyword">pub</span> latitude: <span class="type">f64</span>,
+    <span class="keyword">pub</span> longitude: <span class="type">f64</span>,
+    <span class="keyword">pub</span> currency: <span class="type">String</span>,
+    <span class="keyword">pub</span> continent_code: <span class="type">String</span>,
+    <span class="keyword">pub</span> continent_name: <span class="type">String</span>,
+    <span class="keyword">pub</span> is_eu: <span class="type">bool</span>,
+    <span class="keyword">pub</span> dst_active: <span class="type">bool</span>,
+}</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            The enriched output type containing complete geographic context for a location.
+                        </p>
+                        <p>
+                            This struct is returned by <a href="#fn-lookup"><code>lookup()</code></a> and contains 18 fields
+                            providing comprehensive information about a geographic location.
+                        </p>
+                    </div>
+
+                    <h2 class="fields-title">Fields</h2>
+                    
+                    <div class="field-list">
+                        <div class="field-item">
+                            <h3 class="field-name">city: String</h3>
+                            <div class="doc-block">
+                                <p>City or locality name (e.g., "New York", "Tokyo", "Paris")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">region: String</h3>
+                            <div class="doc-block">
+                                <p>State, province, or administrative region full name (e.g., "California", "Tokyo", "Île-de-France")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">region_code: String</h3>
+                            <div class="doc-block">
+                                <p>ISO 3166-2 region code (e.g., "CA" for California, "13" for Tokyo)</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">district: String</h3>
+                            <div class="doc-block">
+                                <p>County, district, or sub-region (e.g., "Los Angeles County", "Chiyoda")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">country_code: String</h3>
+                            <div class="doc-block">
+                                <p>ISO 3166-1 alpha-2 country code (e.g., "US", "JP", "FR")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">country_name: String</h3>
+                            <div class="doc-block">
+                                <p>Full country name (e.g., "United States", "Japan", "France")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">postal_code: String</h3>
+                            <div class="doc-block">
+                                <p>Postal or ZIP code (e.g., "10001", "100-0001", "75001")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">timezone: String</h3>
+                            <div class="doc-block">
+                                <p>IANA timezone identifier (e.g., "America/New_York", "Asia/Tokyo", "Europe/Paris")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">timezone_abbr: String</h3>
+                            <div class="doc-block">
+                                <p>Current timezone abbreviation (e.g., "EST", "JST", "CET"). Changes based on DST.</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">utc_offset: i32</h3>
+                            <div class="doc-block">
+                                <p>Current UTC offset in seconds (e.g., -18000 for UTC-5, 32400 for UTC+9)</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">utc_offset_str: String</h3>
+                            <div class="doc-block">
+                                <p>Formatted UTC offset string (e.g., "UTC-5", "UTC+9", "UTC+5:30")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">latitude: f64</h3>
+                            <div class="doc-block">
+                                <p>Precise latitude coordinate in decimal degrees (-90 to 90)</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">longitude: f64</h3>
+                            <div class="doc-block">
+                                <p>Precise longitude coordinate in decimal degrees (-180 to 180)</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">currency: String</h3>
+                            <div class="doc-block">
+                                <p>ISO 4217 currency code (e.g., "USD", "JPY", "EUR")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">continent_code: String</h3>
+                            <div class="doc-block">
+                                <p>Two-letter continent code (e.g., "NA" for North America, "AS" for Asia, "EU" for Europe)</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">continent_name: String</h3>
+                            <div class="doc-block">
+                                <p>Full continent name (e.g., "North America", "Asia", "Europe")</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">is_eu: bool</h3>
+                            <div class="doc-block">
+                                <p>Whether the location is in a European Union member state</p>
+                            </div>
+                        </div>
+
+                        <div class="field-item">
+                            <h3 class="field-name">dst_active: bool</h3>
+                            <div class="doc-block">
+                                <p>Whether daylight saving time is currently active for this location</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2>Examples</h2>
+                    <div class="code-example">
+<pre><span class="keyword">use</span> genom;
+
+<span class="keyword">let</span> place = genom::<span class="fn-name">lookup</span>(<span class="number">40.7128</span>, <span class="number">-74.0060</span>).<span class="fn-name">unwrap</span>();
+
+<span class="macro">println!</span>(<span class="string">"City: {}"</span>, place.city);
+<span class="macro">println!</span>(<span class="string">"Country: {}"</span>, place.country_name);
+<span class="macro">println!</span>(<span class="string">"Timezone: {} ({})"</span>, place.timezone, place.timezone_abbr);
+<span class="macro">println!</span>(<span class="string">"Currency: {}"</span>, place.currency);
+<span class="macro">println!</span>(<span class="string">"EU Member: {}"</span>, place.is_eu);</pre>
+                    </div>
+                </section>
+
+                <section id="struct-Location" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        Location
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">Location</span> {
+    <span class="keyword">pub</span> latitude: <span class="type">f64</span>,
+    <span class="keyword">pub</span> longitude: <span class="type">f64</span>,
+}</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            A coordinate pair with distance calculation capabilities.
+                        </p>
+                        <p>
+                            This is a simple wrapper around latitude and longitude coordinates that provides
+                            utility methods for geographic calculations.
+                        </p>
+                    </div>
+
+                    <h2 class="fields-title">Fields</h2>
+                    <div class="field-list">
+                        <div class="field-item">
+                            <h3 class="field-name">latitude: f64</h3>
+                            <div class="doc-block">
+                                <p>Latitude in decimal degrees (-90 to 90)</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">longitude: f64</h3>
+                            <div class="doc-block">
+                                <p>Longitude in decimal degrees (-180 to 180)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="impl-title">Implementations</h2>
+                    
+                    <div class="impl-block">
+                        <h3 id="method-new" class="method-title">
+                            <span class="item-kind">pub fn</span>
+                            <span class="method-name">new</span>(latitude: f64, longitude: f64) → Self
+                        </h3>
+                        <div class="doc-block">
+                            <p class="doc-summary">
+                                Constructs a new Location from coordinates.
+                            </p>
+                            
+                            <h4>Examples</h4>
+                            <div class="code-example">
+<pre><span class="keyword">use</span> genom::Location;
+
+<span class="keyword">let</span> loc = Location::<span class="fn-name">new</span>(<span class="number">40.7128</span>, <span class="number">-74.0060</span>);
+<span class="macro">assert_eq!</span>(loc.latitude, <span class="number">40.7128</span>);
+<span class="macro">assert_eq!</span>(loc.longitude, <span class="number">-74.0060</span>);</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="impl-block">
+                        <h3 id="method-distance_to" class="method-title">
+                            <span class="item-kind">pub fn</span>
+                            <span class="method-name">distance_to</span>(&self, other: &Location) → f64
+                        </h3>
+                        <div class="doc-block">
+                            <p class="doc-summary">
+                                Calculates the great-circle distance to another location using the haversine formula.
+                            </p>
+                            <p>
+                                Returns the distance in kilometers. This calculation assumes a spherical Earth
+                                with radius 6371 km, which provides accuracy within 0.5% for most distances.
+                            </p>
+                            
+                            <h4>Examples</h4>
+                            <div class="code-example">
+<pre><span class="keyword">use</span> genom::Location;
+
+<span class="keyword">let</span> nyc = Location::<span class="fn-name">new</span>(<span class="number">40.7128</span>, <span class="number">-74.0060</span>);
+<span class="keyword">let</span> la = Location::<span class="fn-name">new</span>(<span class="number">34.0522</span>, <span class="number">-118.2437</span>);
+
+<span class="keyword">let</span> distance = nyc.<span class="fn-name">distance_to</span>(&la);
+<span class="macro">assert!</span>(distance > <span class="number">3900.0</span> && distance < <span class="number">4000.0</span>); <span class="comment">// ~3944 km</span></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="struct-CompactPlace" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        CompactPlace
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">CompactPlace</span> {
+    <span class="keyword">pub</span> city: <span class="type">u32</span>,
+    <span class="keyword">pub</span> region: <span class="type">u32</span>,
+    <span class="keyword">pub</span> region_code: <span class="type">u32</span>,
+    <span class="keyword">pub</span> district: <span class="type">u32</span>,
+    <span class="keyword">pub</span> country_code: <span class="type">u32</span>,
+    <span class="keyword">pub</span> postal_code: <span class="type">u32</span>,
+    <span class="keyword">pub</span> timezone: <span class="type">u32</span>,
+    <span class="keyword">pub</span> lat: <span class="type">i32</span>,
+    <span class="keyword">pub</span> lon: <span class="type">i32</span>,
+}</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Compressed storage format using string table indices and fixed-point coordinates.
+                        </p>
+                        <p>
+                            This is the internal storage representation used in the database. All string fields
+                            are stored as <code>u32</code> indices into a shared string table, and coordinates
+                            are stored as <code>i32</code> fixed-point values (multiplied by 100,000).
+                        </p>
+                        <p>
+                            This reduces memory footprint by approximately 70% compared to storing full
+                            <a href="#struct-Place"><code>Place</code></a> structs.
+                        </p>
+                    </div>
+
+                    <h2 class="fields-title">Fields</h2>
+                    <div class="field-list">
+                        <div class="field-item">
+                            <h3 class="field-name">city: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the city name</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">region: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the region name</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">region_code: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the region code</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">district: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the district name</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">country_code: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the country code</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">postal_code: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the postal code</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">timezone: u32</h3>
+                            <div class="doc-block">
+                                <p>Index into the string table for the timezone identifier</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">lat: i32</h3>
+                            <div class="doc-block">
+                                <p>Latitude as fixed-point integer (multiply by 100,000 to get decimal degrees)</p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">lon: i32</h3>
+                            <div class="doc-block">
+                                <p>Longitude as fixed-point integer (multiply by 100,000 to get decimal degrees)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="impl-title">Implementations</h2>
+                    
+                    <div class="impl-block">
+                        <h3 id="method-location" class="method-title">
+                            <span class="item-kind">pub fn</span>
+                            <span class="method-name">location</span>(&self) → <a href="#struct-Location">Location</a>
+                        </h3>
+                        <div class="doc-block">
+                            <p class="doc-summary">
+                                Converts the fixed-point coordinates to a <a href="#struct-Location"><code>Location</code></a>.
+                            </p>
+                            <p>
+                                Divides the integer coordinates by 100,000 to recover the original decimal degree values.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="struct-Database" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        Database
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">Database</span> {
+    <span class="keyword">pub</span> strings: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,
+    <span class="keyword">pub</span> places: <span class="type">Vec</span>&lt;<a href="#struct-CompactPlace">CompactPlace</a>&gt;,
+    <span class="keyword">pub</span> grid: <span class="type">FxHashMap</span>&lt;(<span class="type">i16</span>, <span class="type">i16</span>), <span class="type">Vec</span>&lt;<span class="type">u32</span>&gt;&gt;,
+}</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            The complete spatial database structure with string interning and grid index.
+                        </p>
+                        <p>
+                            This struct contains all the data needed for geocoding operations. It uses
+                            string interning to deduplicate common strings and a spatial grid index for
+                            fast coordinate lookups.
+                        </p>
+                    </div>
+
+                    <h2 class="fields-title">Fields</h2>
+                    <div class="field-list">
+                        <div class="field-item">
+                            <h3 class="field-name">strings: Vec&lt;String&gt;</h3>
+                            <div class="doc-block">
+                                <p>
+                                    Deduplicated string table. All string fields in <a href="#struct-CompactPlace"><code>CompactPlace</code></a>
+                                    are stored as indices into this vector. Common strings like country codes and
+                                    timezone names are stored only once.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">places: Vec&lt;CompactPlace&gt;</h3>
+                            <div class="doc-block">
+                                <p>
+                                    All geographic entries in compressed format. Each entry contains indices into
+                                    the string table and fixed-point coordinates.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">grid: FxHashMap&lt;(i16, i16), Vec&lt;u32&gt;&gt;</h3>
+                            <div class="doc-block">
+                                <p>
+                                    Spatial index mapping grid cells to place indices. The world is divided into
+                                    0.1° × 0.1° cells (~11km at equator). Each cell contains a vector of indices
+                                    into the <code>places</code> vector.
+                                </p>
+                                <p>
+                                    Uses <code>FxHashMap</code> (from <code>rustc-hash</code>) for faster hashing
+                                    of integer keys compared to the standard library's <code>HashMap</code>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2>Spatial Indexing Strategy</h2>
+                    <div class="doc-block">
+                        <p>
+                            The grid divides the world into 0.1° × 0.1° cells. For a lookup:
+                        </p>
+                        <ol>
+                            <li>Quantize the input coordinates to a grid key: <code>(lat * 100000 / 10000, lon * 100000 / 10000)</code></li>
+                            <li>Search the target cell and 8 neighboring cells (3×3 grid)</li>
+                            <li>Calculate haversine distance to all candidates in these cells</li>
+                            <li>Return the nearest place</li>
+                        </ol>
+                        <p>
+                            This provides O(1) average-case lookup with a small constant factor (typically 10-50 candidates to check).
+                        </p>
+                    </div>
+                </section>
+
+                <section id="struct-PlaceInput" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Struct</span>
+                        PlaceInput
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub struct</span> <span class="type-name">PlaceInput</span>&lt;'a&gt; {
+    <span class="keyword">pub</span> city: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> region: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> region_code: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> district: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> country_code: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> postal_code: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> timezone: &'a <span class="type">str</span>,
+    <span class="keyword">pub</span> latitude: <span class="type">f64</span>,
+    <span class="keyword">pub</span> longitude: <span class="type">f64</span>,
+}</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Input structure for the <a href="#fn-enrich_place"><code>enrich_place</code></a> function.
+                        </p>
+                        <p>
+                            This struct contains the basic geographic data that will be enriched with additional
+                            computed fields (country name, currency, continent, timezone details, etc.).
+                        </p>
+                        <p>
+                            Uses borrowed string slices to avoid unnecessary allocations during the enrichment process.
+                        </p>
+                    </div>
+
+                    <h2 class="fields-title">Fields</h2>
+                    <div class="field-list">
+                        <div class="field-item">
+                            <h3 class="field-name">city: &'a str</h3>
+                            <div class="doc-block"><p>City name</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">region: &'a str</h3>
+                            <div class="doc-block"><p>Region/state name</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">region_code: &'a str</h3>
+                            <div class="doc-block"><p>Region code</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">district: &'a str</h3>
+                            <div class="doc-block"><p>District/county name</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">country_code: &'a str</h3>
+                            <div class="doc-block"><p>ISO country code</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">postal_code: &'a str</h3>
+                            <div class="doc-block"><p>Postal/ZIP code</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">timezone: &'a str</h3>
+                            <div class="doc-block"><p>IANA timezone identifier</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">latitude: f64</h3>
+                            <div class="doc-block"><p>Latitude coordinate</p></div>
+                        </div>
+                        <div class="field-item">
+                            <h3 class="field-name">longitude: f64</h3>
+                            <div class="doc-block"><p>Longitude coordinate</p></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="fn-lookup" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Function</span>
+                        lookup
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub fn</span> <span class="fn-name">lookup</span>(
+    latitude: <span class="type">f64</span>,
+    longitude: <span class="type">f64</span>
+) → <span class="type">Option</span>&lt;<a href="#struct-Place">Place</a>&gt;</pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Performs reverse geocoding on the given coordinates, returning enriched place data if found.
+                        </p>
+                        
+                        <h2>Conceptual Role</h2>
+                        <p>
+                            This is the primary entry point for all geocoding operations. It abstracts away
+                            database access, spatial indexing, and data enrichment into a single call.
+                        </p>
+                        
+                        <h2>What This Function Does</h2>
+                        <ul>
+                            <li>Accesses the global geocoder singleton (lazy initialization on first call)</li>
+                            <li>Performs grid-based spatial lookup to find nearest place</li>
+                            <li>Enriches raw data with timezone, currency, and regional information</li>
+                            <li>Returns <code>None</code> if no place found within search radius</li>
+                        </ul>
+
+                        <h2>Thread Safety</h2>
+                        <p>
+                            This function is thread-safe and can be called concurrently from multiple threads.
+                            The underlying database is initialized once and shared via a static <code>OnceLock</code>.
+                        </p>
+
+                        <h2>Performance</h2>
+                        <p>
+                            Typical lookup time: &lt;1ms. First call incurs database initialization overhead
+                            (~100ms to decompress and load). Subsequent calls are lock-free reads.
+                        </p>
+
+                        <h2>Examples</h2>
+                        <div class="code-example">
+<pre><span class="keyword">use</span> genom;
+
+<span class="comment">// Tokyo coordinates</span>
+<span class="keyword">if let</span> <span class="keyword">Some</span>(place) = genom::<span class="fn-name">lookup</span>(<span class="number">35.6762</span>, <span class="number">139.6503</span>) {
+    <span class="macro">println!</span>(<span class="string">"{}, {}"</span>, place.city, place.country_name);
+    <span class="macro">println!</span>(<span class="string">"Timezone: {}"</span>, place.timezone);
+    <span class="macro">println!</span>(<span class="string">"Currency: {}"</span>, place.currency);
+}
+
+<span class="comment">// Ocean coordinates return None</span>
+<span class="macro">assert!</span>(genom::<span class="fn-name">lookup</span>(<span class="number">0.0</span>, <span class="number">-160.0</span>).<span class="fn-name">is_none</span>());</pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="fn-enrich_place" class="doc-section">
+                    <h1 class="section-title">
+                        <span class="item-kind">Function</span>
+                        enrich_place
+                    </h1>
+                    <div class="item-signature">
+<pre><span class="keyword">pub fn</span> <span class="fn-name">enrich_place</span>(input: <a href="#struct-PlaceInput">PlaceInput</a>) → <a href="#struct-Place">Place</a></pre>
+                    </div>
+                    <div class="doc-block">
+                        <p class="doc-summary">
+                            Enriches basic place data with computed fields.
+                        </p>
+                        <p>
+                            This function takes a <a href="#struct-PlaceInput"><code>PlaceInput</code></a> containing
+                            basic geographic information and returns a fully enriched <a href="#struct-Place"><code>Place</code></a>
+                            with additional computed fields.
+                        </p>
+
+                        <h2>Enrichment Process</h2>
+                        <ol>
+                            <li><strong>Timezone Parsing:</strong> Parses the IANA timezone to extract current offset, abbreviation, and DST status using <code>chrono-tz</code></li>
+                            <li><strong>Country Lookup:</strong> Maps country code to full country name using static hash map</li>
+                            <li><strong>Currency Lookup:</strong> Maps country code to ISO 4217 currency code</li>
+                            <li><strong>Continent Lookup:</strong> Maps country code to continent code and name</li>
+                            <li><strong>EU Status:</strong> Checks if country is an EU member state</li>
+                        </ol>
+
+                        <h2>Static Data Sources</h2>
+                        <p>
+                            All enrichment data is stored in static <code>LazyLock&lt;FxHashMap&gt;</code> instances:
+                        </p>
+                        <ul>
+                            <li><code>COUNTRY_NAMES</code> - 200+ country code to name mappings</li>
+                            <li><code>COUNTRY_CURRENCIES</code> - 200+ country code to currency mappings</li>
+                            <li><code>COUNTRY_CONTINENTS</code> - 200+ country code to continent mappings</li>
+                            <li><code>CONTINENT_NAMES</code> - 7 continent code to name mappings</li>
+                            <li><code>EU_COUNTRIES</code> - 27 EU member states</li>
+                        </ul>
+
+                        <h2>DST Detection</h2>
+                        <p>
+                            DST status is determined by comparing the current UTC offset with the minimum offset
+                            observed in January and July. If the current offset differs from the minimum, DST is active.
+                        </p>
+
+                        <h2>Examples</h2>
+                        <div class="code-example">
+<pre><span class="keyword">use</span> genom::enrichment::{enrich_place, PlaceInput};
+
+<span class="keyword">let</span> input = PlaceInput {
+    city: <span class="string">"New York"</span>,
+    region: <span class="string">"New York"</span>,
+    region_code: <span class="string">"NY"</span>,
+    district: <span class="string">"New York County"</span>,
+    country_code: <span class="string">"US"</span>,
+    postal_code: <span class="string">"10001"</span>,
+    timezone: <span class="string">"America/New_York"</span>,
+    latitude: <span class="number">40.7128</span>,
+    longitude: <span class="number">-74.0060</span>,
+};
+
+<span class="keyword">let</span> place = <span class="fn-name">enrich_place</span>(input);
+<span class="macro">assert_eq!</span>(place.country_name, <span class="string">"United States"</span>);
+<span class="macro">assert_eq!</span>(place.currency, <span class="string">"USD"</span>);
+<span class="macro">assert_eq!</span>(place.continent_name, <span class="string">"North America"</span>);
+<span class="macro">assert_eq!</span>(place.is_eu, <span class="keyword">false</span>);</pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="doc-section">
+                    <h1 class="section-title">Performance & Implementation Details</h1>
+                    <div class="doc-block">
+                        <h2>Memory Layout</h2>
+                        <p>
+                            The database uses a highly optimized memory layout:
+                        </p>
+                        <ul>
+                            <li><strong>String Interning:</strong> Common strings stored once, reducing memory by ~60%</li>
+                            <li><strong>Fixed-Point Coordinates:</strong> 32-bit integers instead of 64-bit floats, reducing coordinate storage by 50%</li>
+                            <li><strong>Spatial Grid:</strong> O(1) lookup with small constant factor (10-50 candidates)</li>
+                        </ul>
+
+                        <h2>Initialization</h2>
+                        <p>
+                            The database is embedded in the binary at compile time using <code>include_bytes!</code>.
+                            On first access:
+                        </p>
+                        <ol>
+                            <li>Binary data is decompressed using bincode</li>
+                            <li>Database struct is deserialized (~100ms)</li>
+                            <li>Reference is stored in static <code>OnceLock</code></li>
+                            <li>All subsequent accesses are instant</li>
+                        </ol>
+
+                        <h2>Thread Safety</h2>
+                        <p>
+                            After initialization, all operations are read-only and require no synchronization.
+                            Multiple threads can perform lookups concurrently without contention.
+                        </p>
+
+                        <h2>Build Process</h2>
+                        <p>
+                            The database is built from GeoNames data during <code>cargo build</code>:
+                        </p>
+                        <ol>
+                            <li>Download GeoNames cities dataset</li>
+                            <li>Parse and filter entries</li>
+                            <li>Build string table with deduplication</li>
+                            <li>Create spatial grid index</li>
+                            <li>Serialize to binary format</li>
+                            <li>Embed in compiled binary</li>
+                        </ol>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scroll for navigation
+        document.querySelectorAll('.nav-link').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Update active state
+                    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        // Highlight current section in sidebar based on scroll position
+        function updateActiveSection() {
+            const sections = document.querySelectorAll('.doc-section');
+            const scrollPosition = window.scrollY + 150; // Offset for better detection
+            
+            let currentSectionId = null;
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionBottom = sectionTop + section.offsetHeight;
+                
+                if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                    currentSectionId = section.getAttribute('id');
+                }
+            });
+            
+            if (currentSectionId) {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${currentSectionId}`) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        }
+        
+        // Update on scroll with throttling
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            if (scrollTimeout) {
+                window.cancelAnimationFrame(scrollTimeout);
+            }
+            scrollTimeout = window.requestAnimationFrame(() => {
+                updateActiveSection();
+            });
+        });
+        
+        // Initial update
+        updateActiveSection();
+    </script>
+</body>
+</html>
