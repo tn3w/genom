@@ -11,7 +11,7 @@ documentation = "https://genom.tn3w.dev/docs"
 readme = "README.md"
 keywords = ["geocoding", "reverse-geocoding", "location", "geonames", "coordinates"]
 categories = ["algorithms", "data-structures", "science::geo"]
-exclude = ["data/"]
+exclude = ["data/", "target/"]
 
 [dependencies]
 bincode = "2.0"

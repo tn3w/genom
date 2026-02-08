@@ -1,10 +1,9 @@
 use crate::enrichment::{enrich_place, PlaceInput};
 use crate::types::{Database, Location, Place};
-use std::fs;
-use std::path::PathBuf;
 use std::sync::OnceLock;
 
 static GEOCODER: OnceLock<Geocoder> = OnceLock::new();
+static DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/places.bin"));
 
 pub struct Geocoder {
     db: Database,
@@ -16,29 +15,26 @@ impl Geocoder {
     }
 
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let path = Self::data_path();
-        let bytes = fs::read(&path)?;
-        let (db, _): (Database, _) =
-            bincode::decode_from_slice(&bytes, bincode::config::standard())?;
+        let (db, _): (Database, _) = bincode::decode_from_slice(DATA, bincode::config::standard())?;
         Ok(Self { db })
     }
 
-    fn data_path() -> PathBuf {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        PathBuf::from(manifest_dir).join("data").join("places.bin")
-    }
-
     pub fn lookup(&self, latitude: f64, longitude: f64) -> Option<Place> {
-        self.search(Location::new(latitude, longitude))
+        let location = Location::new(latitude, longitude);
+        let grid_key = self.grid_key(&location);
+        let idx = self.find_nearest(&location, grid_key)?;
+        Some(self.build_place(idx))
     }
 
-    fn search(&self, location: Location) -> Option<Place> {
-        let grid_key = (
+    fn grid_key(&self, location: &Location) -> (i16, i16) {
+        (
             ((location.latitude * 100000.0) as i32 / 10000) as i16,
             ((location.longitude * 100000.0) as i32 / 10000) as i16,
-        );
+        )
+    }
 
-        let (idx, _) = (-1..=1)
+    fn find_nearest(&self, location: &Location, grid_key: (i16, i16)) -> Option<usize> {
+        (-1..=1)
             .flat_map(|dlat| {
                 (-1..=1).filter_map(move |dlon| {
                     self.db.grid.get(&(grid_key.0 + dlat, grid_key.1 + dlon))
@@ -49,10 +45,13 @@ impl Geocoder {
                 let place = &self.db.places[idx as usize];
                 (idx as usize, location.distance_to(&place.location()))
             })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())?;
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .map(|(idx, _)| idx)
+    }
 
+    fn build_place(&self, idx: usize) -> Place {
         let place = &self.db.places[idx];
-        Some(enrich_place(PlaceInput {
+        enrich_place(PlaceInput {
             city: &self.db.strings[place.city as usize],
             region: &self.db.strings[place.region as usize],
             region_code: &self.db.strings[place.region_code as usize],
@@ -62,6 +61,6 @@ impl Geocoder {
             timezone: &self.db.strings[place.timezone as usize],
             latitude: place.lat as f64 / 100000.0,
             longitude: place.lon as f64 / 100000.0,
-        }))
+        })
     }
 }
