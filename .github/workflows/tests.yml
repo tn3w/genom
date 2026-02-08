@@ -37,6 +37,8 @@ jobs:
         run: cargo fmt --all -- --check
       
       - name: Run clippy
+        env:
+          CLIPPY_ARGS: "1"
         run: cargo clippy --all-targets --all-features -- -D warnings
       
       - name: Run tests

@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::sync::{Arc, Mutex};
 use types::{CompactPlace, Database};
 
-mod types;
+use crate::types;
 
 const COUNTRIES: &[&str] = &[
     "AD", "AE", "AI", "AL", "AR", "AS", "AT", "AU", "AX", "AZ", "BD", "BE", "BG", "BM", "BR", "BY",
@@ -313,7 +313,7 @@ impl Builder {
                                 let dlon = (place.lon - postal.lon) as f64;
                                 dlat * dlat + dlon * dlon
                             };
-                            if closest.map_or(true, |(_, d)| dist < d) {
+                            if closest.is_none_or(|(_, d)| dist < d) {
                                 closest = Some((postal, dist));
                             }
                         }

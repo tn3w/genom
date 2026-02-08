@@ -8,6 +8,10 @@ mod types;
 use builder::Builder;
 
 fn main() {
+    if std::env::var("DOCS_RS").is_ok() || std::env::var("CLIPPY_ARGS").is_ok() {
+        return;
+    }
+
     let out_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let data_dir = out_dir.join("data");
     let db_path = data_dir.join("places.bin");
