@@ -10,6 +10,7 @@ class GenomDB {
     this.status = 'initializing';
     this.progress = 0;
     this.listeners = [];
+    this.wasm = null;
   }
 
   onStatusChange(callback) {
@@ -23,11 +24,15 @@ class GenomDB {
 
   async init() {
     try {
+      this.status = 'loading wasm';
+      this.notifyListeners();
+      await this.loadWasm();
+
       const cached = await this.getCachedData();
       if (cached) {
         this.status = 'loading cached';
         this.notifyListeners();
-        await this.initWasm(cached);
+        await this.initGeocoder(cached);
         this.ready = true;
         this.status = 'ready';
         this.progress = 100;
@@ -42,10 +47,10 @@ class GenomDB {
       this.status = 'decompressing';
       this.progress = 0;
       this.notifyListeners();
-      const decompressed = await this.decompress(compressed);
+      const decompressed = await this.decompressAsync(compressed);
 
       await this.cacheData(decompressed);
-      await this.initWasm(decompressed);
+      await this.initGeocoder(decompressed);
 
       this.ready = true;
       this.status = 'ready';
@@ -56,6 +61,11 @@ class GenomDB {
       this.notifyListeners();
       throw error;
     }
+  }
+
+  async loadWasm() {
+    this.wasm = await import('./genom_wasm.js');
+    await this.wasm.default();
   }
 
   async downloadWithProgress() {
@@ -85,23 +95,28 @@ class GenomDB {
     );
   }
 
-  async decompress(compressed) {
-    const { decompress_xz } = await import('./genom_wasm.js');
-    
-    this.progress = 10;
-    this.notifyListeners();
-    
-    const decompressed = decompress_xz(compressed);
-    
-    this.progress = 95;
-    this.notifyListeners();
-    
-    return decompressed;
+  async decompressAsync(compressed) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          this.progress = 10;
+          this.notifyListeners();
+          
+          const decompressed = this.wasm.decompress_xz(compressed);
+          
+          this.progress = 95;
+          this.notifyListeners();
+          
+          resolve(decompressed);
+        } catch (error) {
+          reject(error);
+        }
+      }, 0);
+    });
   }
 
-  async initWasm(data) {
-    const { init_geocoder } = await import('./genom_wasm.js');
-    init_geocoder(data);
+  async initGeocoder(data) {
+    this.wasm.init_geocoder(data);
   }
 
   async getCachedData() {
@@ -147,8 +162,7 @@ class GenomDB {
 
   async lookup(lat, lon) {
     if (!this.ready) throw new Error('DB not ready');
-    const { lookup } = await import('./genom_wasm.js');
-    return lookup(lat, lon);
+    return this.wasm.lookup(lat, lon);
   }
 }
 

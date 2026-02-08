@@ -39,10 +39,11 @@ jobs:
       - name: Run clippy
         env:
           CLIPPY_ARGS: "1"
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: |
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets --features build-database -- -D warnings
       
       - name: Run tests
-        run: cargo test --verbose
-      
-      - name: Run doc tests
-        run: cargo test --doc --verbose
+        run: |
+          cargo test --verbose --features build-database
+          cargo test --doc --verbose --features build-database

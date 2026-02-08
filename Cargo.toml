@@ -19,6 +19,7 @@ exclude = ["data/", "target/"]
 [features]
 default = []
 wasm = []
+build-database = []
 
 [dependencies]
 bincode = "2.0"

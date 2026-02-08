@@ -8,6 +8,9 @@ mod types;
 use builder::Builder;
 
 fn main() {
+    #[cfg(not(feature = "build-database"))]
+    return;
+
     if std::env::var("DOCS_RS").is_ok() || std::env::var("CLIPPY_ARGS").is_ok() {
         return;
     }
