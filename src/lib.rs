@@ -1,6 +1,6 @@
+mod database;
 pub mod enrichment;
 pub mod types;
-mod database;
 
 pub use database::Geocoder;
 pub use types::{Location, Place};
