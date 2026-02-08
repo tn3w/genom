@@ -39,8 +39,6 @@
 //!
 //! ```no_run
 //! # fn main() {
-//! use genom;
-//!
 //! // Look up coordinates for Paris, France
 //! if let Some(place) = genom::lookup(48.8566, 2.3522) {
 //!     // Location information
@@ -140,7 +138,6 @@
 //!
 //! ```no_run
 //! use std::thread;
-//! use genom;
 //!
 //! # fn main() {
 //! let handles: Vec<_> = (0..10)
