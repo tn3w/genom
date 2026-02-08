@@ -1,4 +1,4 @@
-use crate::enrichment::enrich_place;
+use crate::enrichment::{enrich_place, PlaceInput};
 use crate::types::{Database, Location, Place};
 use std::fs;
 use std::path::PathBuf;
@@ -52,16 +52,16 @@ impl Geocoder {
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())?;
 
         let place = &self.db.places[idx];
-        Some(enrich_place(
-            &self.db.strings[place.city as usize],
-            &self.db.strings[place.region as usize],
-            &self.db.strings[place.region_code as usize],
-            &self.db.strings[place.district as usize],
-            &self.db.strings[place.country_code as usize],
-            &self.db.strings[place.postal_code as usize],
-            &self.db.strings[place.timezone as usize],
-            place.lat as f64 / 100000.0,
-            place.lon as f64 / 100000.0,
-        ))
+        Some(enrich_place(PlaceInput {
+            city: &self.db.strings[place.city as usize],
+            region: &self.db.strings[place.region as usize],
+            region_code: &self.db.strings[place.region_code as usize],
+            district: &self.db.strings[place.district as usize],
+            country_code: &self.db.strings[place.country_code as usize],
+            postal_code: &self.db.strings[place.postal_code as usize],
+            timezone: &self.db.strings[place.timezone as usize],
+            latitude: place.lat as f64 / 100000.0,
+            longitude: place.lon as f64 / 100000.0,
+        }))
     }
 }

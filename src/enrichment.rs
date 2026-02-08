@@ -814,18 +814,20 @@ fn calculate_dst(tz: &Tz, offset_secs: i32) -> bool {
     offset_secs != jan.min(jul)
 }
 
-pub fn enrich_place(
-    city: &str,
-    region: &str,
-    region_code: &str,
-    district: &str,
-    country_code: &str,
-    postal_code: &str,
-    timezone: &str,
-    latitude: f64,
-    longitude: f64,
-) -> Place {
-    let (timezone_abbr, utc_offset, utc_offset_str, dst_active) = Tz::from_str(timezone)
+pub struct PlaceInput<'a> {
+    pub city: &'a str,
+    pub region: &'a str,
+    pub region_code: &'a str,
+    pub district: &'a str,
+    pub country_code: &'a str,
+    pub postal_code: &'a str,
+    pub timezone: &'a str,
+    pub latitude: f64,
+    pub longitude: f64,
+}
+
+pub fn enrich_place(input: PlaceInput) -> Place {
+    let (timezone_abbr, utc_offset, utc_offset_str, dst_active) = Tz::from_str(input.timezone)
         .ok()
         .map(|tz| {
             let local = Utc::now().with_timezone(&tz);
@@ -840,36 +842,36 @@ pub fn enrich_place(
         .unwrap_or_else(|| (String::new(), 0, "UTC+0".to_string(), false));
 
     Place {
-        city: city.to_string(),
-        region: region.to_string(),
-        region_code: region_code.to_string(),
-        district: district.to_string(),
-        country_code: country_code.to_string(),
+        city: input.city.to_string(),
+        region: input.region.to_string(),
+        region_code: input.region_code.to_string(),
+        district: input.district.to_string(),
+        country_code: input.country_code.to_string(),
         country_name: COUNTRY_NAMES
-            .get(country_code)
+            .get(input.country_code)
             .unwrap_or(&"Unknown")
             .to_string(),
-        postal_code: postal_code.to_string(),
-        timezone: timezone.to_string(),
+        postal_code: input.postal_code.to_string(),
+        timezone: input.timezone.to_string(),
         timezone_abbr,
         utc_offset,
         utc_offset_str,
-        latitude,
-        longitude,
+        latitude: input.latitude,
+        longitude: input.longitude,
         currency: COUNTRY_CURRENCIES
-            .get(country_code)
+            .get(input.country_code)
             .unwrap_or(&"")
             .to_string(),
         continent_code: COUNTRY_CONTINENTS
-            .get(country_code)
+            .get(input.country_code)
             .unwrap_or(&"")
             .to_string(),
         continent_name: COUNTRY_CONTINENTS
-            .get(country_code)
+            .get(input.country_code)
             .and_then(|c| CONTINENT_NAMES.get(c))
             .unwrap_or(&"Unknown")
             .to_string(),
-        is_eu: EU_COUNTRIES.contains_key(country_code),
+        is_eu: EU_COUNTRIES.contains_key(input.country_code),
         dst_active,
     }
 }
