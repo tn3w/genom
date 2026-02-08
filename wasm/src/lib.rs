@@ -2,10 +2,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn decompress_xz(compressed: &[u8]) -> Result<Vec<u8>, String> {
-    let mut decompressed = Vec::new();
-    lzma_rs::xz_decompress(&mut &compressed[..], &mut decompressed)
-        .map_err(|e| format!("Decompression failed: {}", e))?;
-    Ok(decompressed)
+    liblzma::decode_all(compressed).map_err(|e| format!("Decompression failed: {:?}", e))
 }
 
 #[wasm_bindgen]
