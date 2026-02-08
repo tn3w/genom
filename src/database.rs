@@ -4,10 +4,10 @@ use std::sync::OnceLock;
 
 static GEOCODER: OnceLock<Geocoder> = OnceLock::new();
 
-#[cfg(not(any(doc, clippy)))]
+#[cfg(not(any(doc, clippy, feature = "no-build-database")))]
 static DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/places.bin"));
 
-#[cfg(any(doc, clippy))]
+#[cfg(any(doc, clippy, feature = "no-build-database"))]
 static DATA: &[u8] = &[];
 
 pub struct Geocoder {
