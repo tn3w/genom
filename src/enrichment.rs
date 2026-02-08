@@ -1,3 +1,17 @@
+//! Data enrichment module that adds computed fields to raw geographic data.
+//!
+//! This module provides functionality to enrich basic place data with additional information such as:
+//!
+//! - Country names from ISO codes
+//! - Currency codes by country
+//! - Continent information
+//! - EU membership status
+//! - Timezone calculations (offset, abbreviation, DST status)
+//!
+//! All enrichment data is stored in static lazy-initialized hash maps for efficient lookup.
+
+#![warn(missing_docs)]
+
 use crate::types::Place;
 use chrono::{Offset, TimeZone, Utc};
 use chrono_tz::Tz;
@@ -814,18 +828,87 @@ fn calculate_dst(tz: &Tz, offset_secs: i32) -> bool {
     offset_secs != jan.min(jul)
 }
 
+/// Input structure for the [`enrich_place`] function.
+///
+/// This struct contains the basic geographic data that will be enriched with additional
+/// computed fields (country name, currency, continent, timezone details, etc.).
+///
+/// Uses borrowed string slices to avoid unnecessary allocations during the enrichment process.
 pub struct PlaceInput<'a> {
+    /// City name
     pub city: &'a str,
+    /// Region/state name
     pub region: &'a str,
+    /// Region code
     pub region_code: &'a str,
+    /// District/county name
     pub district: &'a str,
+    /// ISO country code
     pub country_code: &'a str,
+    /// Postal/ZIP code
     pub postal_code: &'a str,
+    /// IANA timezone identifier
     pub timezone: &'a str,
+    /// Latitude coordinate
     pub latitude: f64,
+    /// Longitude coordinate
     pub longitude: f64,
 }
 
+/// Enriches basic place data with computed fields.
+///
+/// This function takes a [`PlaceInput`] containing
+/// basic geographic information and returns a fully enriched [`Place`]
+/// with additional computed fields.
+///
+/// # Enrichment Process
+///
+/// 1. **Timezone Parsing:** Parses the IANA timezone to extract current offset, abbreviation, and DST status using `chrono-tz`
+/// 2. **Country Lookup:** Maps country code to full country name using static hash map
+/// 3. **Currency Lookup:** Maps country code to ISO 4217 currency code
+/// 4. **Continent Lookup:** Maps country code to continent code and name
+/// 5. **EU Status:** Checks if country is an EU member state
+///
+/// # Static Data Sources
+///
+/// All enrichment data is stored in static `LazyLock<FxHashMap>` instances:
+///
+/// - `COUNTRY_NAMES` - 200+ country code to name mappings
+/// - `COUNTRY_CURRENCIES` - 200+ country code to currency mappings
+/// - `COUNTRY_CONTINENTS` - 200+ country code to continent mappings
+/// - `CONTINENT_NAMES` - 7 continent code to name mappings
+/// - `EU_COUNTRIES` - 27 EU member states
+///
+/// # DST Detection
+///
+/// DST status is determined by comparing the current UTC offset with the minimum offset
+/// observed in January and July. If the current offset differs from the minimum, DST is active.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() {
+/// use genom::enrichment::{enrich_place, PlaceInput};
+///
+/// let input = PlaceInput {
+///     city: "New York",
+///     region: "New York",
+///     region_code: "NY",
+///     district: "New York County",
+///     country_code: "US",
+///     postal_code: "10001",
+///     timezone: "America/New_York",
+///     latitude: 40.7128,
+///     longitude: -74.0060,
+/// };
+///
+/// let place = enrich_place(input);
+/// assert_eq!(place.country_name, "United States");
+/// assert_eq!(place.currency, "USD");
+/// assert_eq!(place.continent_name, "North America");
+/// assert_eq!(place.is_eu, false);
+/// # }
+/// ```
 pub fn enrich_place(input: PlaceInput) -> Place {
     let (timezone_abbr, utc_offset, utc_offset_str, dst_active) = Tz::from_str(input.timezone)
         .ok()
