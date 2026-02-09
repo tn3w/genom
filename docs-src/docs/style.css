@@ -356,12 +356,14 @@ body::before {
     padding: 2rem;
     margin-bottom: 2.5rem;
     overflow-x: auto;
+    overflow-y: hidden;
     position: relative;
     box-shadow: 
         0 0 0 1px rgba(183, 65, 14, 0.05),
         0 8px 32px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
     transition: all 0.4s ease;
+    max-width: 100%;
 }
 
 .item-signature::-webkit-scrollbar {
@@ -411,6 +413,8 @@ body::before {
     white-space: pre;
     word-wrap: normal;
     overflow-wrap: normal;
+    overflow-x: visible;
+    margin: 0;
 }
 
 /* Doc Blocks */
@@ -534,12 +538,14 @@ body::before {
     padding: 2rem;
     margin: 2rem 0;
     overflow-x: auto;
+    overflow-y: hidden;
     position: relative;
     box-shadow: 
         0 0 0 1px rgba(183, 65, 14, 0.05),
         0 8px 32px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.02);
     transition: all 0.4s ease;
+    max-width: 100%;
 }
 
 .code-example::-webkit-scrollbar {
@@ -884,6 +890,20 @@ body::before {
     }
 }
 
+@media (max-width: 560px) {
+    .item-signature,
+    .code-example {
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    
+    .item-signature pre,
+    .code-example pre {
+        font-size: 0.75rem;
+        line-height: 1.6;
+    }
+}
+
 @media (max-width: 480px) {
     .content-inner {
         padding: 1.5rem 1.25rem;
@@ -907,5 +927,15 @@ body::before {
     
     .nav-link:hover {
         padding-left: 1.75rem;
+    }
+    
+    .item-signature,
+    .code-example {
+        padding: 0.75rem;
+    }
+    
+    .item-signature pre,
+    .code-example pre {
+        font-size: 0.7rem;
     }
 }

@@ -637,6 +637,8 @@ nav a:hover::after {
     font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
     font-size: 0.95rem;
     line-height: 2;
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 .c-bracket { color: #ff6b9d; font-weight: 500; }
@@ -914,6 +916,22 @@ footer::before {
     }
 }
 
+@media (max-width: 560px) {
+    .code-window {
+        border-radius: 10px;
+    }
+    
+    .code-window pre {
+        padding: 1.5rem;
+        font-size: 0.75rem;
+        line-height: 1.7;
+    }
+    
+    .code-header {
+        padding: 1rem 1.2rem;
+    }
+}
+
 @media (max-width: 480px) {
     .container {
         padding: 0 1.25rem;
@@ -925,5 +943,18 @@ footer::before {
     
     .section-header h2 {
         font-size: 2rem;
+    }
+    
+    .code-window pre {
+        padding: 1rem;
+        font-size: 0.7rem;
+    }
+    
+    .code-header {
+        padding: 0.8rem 1rem;
+    }
+    
+    .code-title {
+        font-size: 0.7rem;
     }
 }
