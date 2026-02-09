@@ -39,7 +39,9 @@ jobs:
           cp -r docs-src/* docs/
           
           VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CUT=$(echo "$VERSION" | sed 's/\.[0-9]*$//')
           find docs -name "*.html" -exec sed -i "s|VERSION|v${VERSION}|g" {} \;
+          find docs -name "*.html" -exec sed -i "s|VERSION_CUT|${VERSION_CUT}|g" {} \;
 
       - name: Minify assets
         run: |
