@@ -52,7 +52,7 @@ println!("Currency: {} | EU: {}", place.currency, place.is_eu);
 
 ### ⚡ Blazing Fast
 
-Grid-based spatial indexing delivers consistent sub-millisecond performance. Optimized binary format with string interning keeps memory usage minimal (~30-50 MB).
+Grid-based spatial indexing delivers consistent sub-millisecond performance. Optimized binary format with string interning keeps memory usage minimal (~150 MB).
 
 </td>
 <td width="50%">
@@ -99,7 +99,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-genom = "0.1"
+genom = "1.0"
 ```
 
 Or via cargo:
@@ -227,10 +227,10 @@ cargo build --release
 
 ## ⚡ Performance
 
-- **First lookup**: ~100ms (database initialization and decompression)
+- **First lookup**: ~100ms (database initialization)
 - **Subsequent lookups**: <1ms (typically 0.1-0.5ms)
-- **Memory usage**: ~30-50 MB (depending on number of countries)
-- **Binary size increase**: ~20-30 MB (embedded database)
+- **Memory usage**: ~150 MB (embedded database in memory)
+- **Binary size increase**: ~150 MB (embedded database)
 
 The database is initialized lazily on first use and cached in a static `OnceLock`, making it safe and efficient for concurrent access.
 
@@ -262,7 +262,7 @@ To skip database generation (e.g., for docs.rs or CI):
 
 ```toml
 [dependencies]
-genom = { version = "0.1", features = ["no-build-database"] }
+genom = { version = "1.0", features = ["no-build-database"] }
 ```
 
 ## 🔍 Use Cases
@@ -290,7 +290,7 @@ This reduces memory footprint by approximately 70% compared to storing full stru
 - **Precision**: Nearest city/town, not street-level accuracy
 - **Coverage**: Limited to 100+ countries with significant population
 - **Updates**: Database is static; requires rebuild for updated data
-- **Size**: Adds ~20-30 MB to your binary
+- **Size**: Adds ~150 MB to your binary
 
 ## 📄 Data Sources
 
