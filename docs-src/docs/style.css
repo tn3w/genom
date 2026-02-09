@@ -26,6 +26,7 @@ body {
     line-height: 1.6;
     position: relative;
     overflow-x: hidden;
+    overflow-y: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -35,7 +36,9 @@ body::before {
     position: fixed;
     top: 0;
     left: var(--sidebar-width);
-    width: calc(100% - var(--sidebar-width));
+    right: 0;
+    bottom: 0;
+    width: calc(100vw - var(--sidebar-width));
     height: 100%;
     background: 
         linear-gradient(90deg, transparent 0%, var(--border) 50%, transparent 100%),
@@ -44,6 +47,7 @@ body::before {
     opacity: 0.02;
     pointer-events: none;
     z-index: 0;
+    overflow: hidden;
 }
 
 /* Layout */
