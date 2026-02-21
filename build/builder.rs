@@ -19,7 +19,7 @@
 //!    - Spatial grid indexing for fast lookups
 //!
 //! 4. **Serialization Phase**: Writes binary database
-//!    - Uses bincode for compact binary format
+//!    - Uses varint encoding for compact binary format
 //!    - Typical output size: 20-30 MB for 100+ countries
 //!
 //! # Data Sources
@@ -28,9 +28,10 @@
 //! which provides free geographic data under Creative Commons Attribution 4.0 license.
 
 use rustc_hash::FxHashMap;
-use std::io::{BufRead, BufReader, Read};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::sync::{Arc, Mutex};
-use types::{CompactPlace, Database};
+use types::CompactPlace;
 
 use crate::types;
 
@@ -125,7 +126,7 @@ impl Builder {
     /// 5. Deduplicates places within ~1km radius
     /// 6. Interns strings to reduce memory usage
     /// 7. Builds spatial grid index
-    /// 8. Serializes to binary format
+    /// 8. Serializes to binary format with varint encoding
     ///
     /// # Arguments
     ///
@@ -160,16 +161,43 @@ impl Builder {
         println!("Building database for {} places...", places.len());
         let (strings, compact_places) = self.intern_strings(places);
         let grid = self.build_grid(&compact_places);
-        let db = Database {
-            strings,
-            places: compact_places,
-            grid,
-        };
 
         println!("Writing database...");
-        let encoded = bincode::encode_to_vec(&db, bincode::config::standard())?;
-        std::fs::write(output_path, &encoded)?;
-        println!("Done! Database size: {} MB", encoded.len() / 1_000_000);
+        let mut out = BufWriter::new(File::create(output_path)?);
+        
+        out.write_all(&(strings.len() as u64).to_le_bytes())?;
+        for s in &strings {
+            let bytes = s.as_bytes();
+            write_varint(&mut out, bytes.len() as u64)?;
+            out.write_all(bytes)?;
+        }
+
+        out.write_all(&(compact_places.len() as u64).to_le_bytes())?;
+        for place in &compact_places {
+            out.write_all(&place.city.to_le_bytes())?;
+            out.write_all(&place.region.to_le_bytes())?;
+            out.write_all(&place.region_code.to_le_bytes())?;
+            out.write_all(&place.district.to_le_bytes())?;
+            out.write_all(&place.country_code.to_le_bytes())?;
+            out.write_all(&place.postal_code.to_le_bytes())?;
+            out.write_all(&place.timezone.to_le_bytes())?;
+            out.write_all(&place.lat.to_le_bytes())?;
+            out.write_all(&place.lon.to_le_bytes())?;
+        }
+
+        out.write_all(&(grid.len() as u64).to_le_bytes())?;
+        for ((lat, lon), indices) in &grid {
+            out.write_all(&lat.to_le_bytes())?;
+            out.write_all(&lon.to_le_bytes())?;
+            out.write_all(&(indices.len() as u64).to_le_bytes())?;
+            for idx in indices {
+                out.write_all(&idx.to_le_bytes())?;
+            }
+        }
+
+        out.flush()?;
+        let size = std::fs::metadata(output_path)?.len();
+        println!("Done! Database size: {} MB", size / 1_000_000);
         Ok(())
     }
 
@@ -351,10 +379,21 @@ impl Builder {
     }
 }
 
-/// Interns a string into the string table, returning its index.
-///
-/// If the string already exists, returns the existing index.
-/// Otherwise, adds the string to the table and returns the new index.
+fn write_varint(out: &mut BufWriter<File>, mut value: u64) -> std::io::Result<()> {
+    loop {
+        let mut byte = (value & 0x7F) as u8;
+        value >>= 7;
+        if value != 0 {
+            byte |= 0x80;
+        }
+        out.write_all(&[byte])?;
+        if value == 0 {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn intern_string(s: &str, map: &mut FxHashMap<String, u32>, strings: &mut Vec<String>) -> u32 {
     *map.entry(s.to_string()).or_insert_with(|| {
         let idx = strings.len() as u32;

@@ -112,17 +112,3 @@ impl CompactPlace {
         }
     }
 }
-
-/// Complete database structure with string table and spatial index (build-time version).
-///
-/// This is the top-level structure that gets serialized to the binary database file.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub(crate) struct Database {
-    /// Deduplicated string table
-    pub strings: Vec<String>,
-    /// All places in compact format
-    pub places: Vec<CompactPlace>,
-    /// Spatial grid index: (lat_key, lon_key) -> [place_indices]
-    pub grid: rustc_hash::FxHashMap<(i16, i16), Vec<u32>>,
-}

@@ -77,8 +77,102 @@ impl Geocoder {
     }
 
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let (db, _): (Database, _) = bincode::decode_from_slice(DATA, bincode::config::standard())?;
+        let db = Self::load_database(DATA)?;
         Ok(Self { db })
+    }
+
+    fn load_database(data: &[u8]) -> Result<Database, Box<dyn std::error::Error>> {
+        let mut cursor = std::io::Cursor::new(data);
+        use std::io::Read;
+
+        let mut buf8 = [0u8; 8];
+        let mut buf4 = [0u8; 4];
+        let mut buf2 = [0u8; 2];
+
+        cursor.read_exact(&mut buf8)?;
+        let str_count = u64::from_le_bytes(buf8) as usize;
+        let mut strings = Vec::with_capacity(str_count);
+        for _ in 0..str_count {
+            let str_len = Self::read_varint(&mut cursor)? as usize;
+            let mut str_buf = vec![0u8; str_len];
+            cursor.read_exact(&mut str_buf)?;
+            strings.push(String::from_utf8(str_buf)?);
+        }
+
+        cursor.read_exact(&mut buf8)?;
+        let place_count = u64::from_le_bytes(buf8) as usize;
+        let mut places = Vec::with_capacity(place_count);
+        for _ in 0..place_count {
+            cursor.read_exact(&mut buf4)?;
+            let city = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let region = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let region_code = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let district = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let country_code = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let postal_code = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let timezone = u32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let lat = i32::from_le_bytes(buf4);
+            cursor.read_exact(&mut buf4)?;
+            let lon = i32::from_le_bytes(buf4);
+            places.push(crate::types::CompactPlace {
+                city,
+                region,
+                region_code,
+                district,
+                country_code,
+                postal_code,
+                timezone,
+                lat,
+                lon,
+            });
+        }
+
+        cursor.read_exact(&mut buf8)?;
+        let grid_count = u64::from_le_bytes(buf8) as usize;
+        let mut grid = rustc_hash::FxHashMap::default();
+        for _ in 0..grid_count {
+            cursor.read_exact(&mut buf2)?;
+            let key_lat = i16::from_le_bytes(buf2);
+            cursor.read_exact(&mut buf2)?;
+            let key_lon = i16::from_le_bytes(buf2);
+            cursor.read_exact(&mut buf8)?;
+            let vec_len = u64::from_le_bytes(buf8) as usize;
+            let mut indices = Vec::with_capacity(vec_len);
+            for _ in 0..vec_len {
+                cursor.read_exact(&mut buf4)?;
+                indices.push(u32::from_le_bytes(buf4));
+            }
+            grid.insert((key_lat, key_lon), indices);
+        }
+
+        Ok(Database {
+            strings,
+            places,
+            grid,
+        })
+    }
+
+    fn read_varint(cursor: &mut std::io::Cursor<&[u8]>) -> Result<u64, Box<dyn std::error::Error>> {
+        use std::io::Read;
+        let mut result = 0u64;
+        let mut shift = 0;
+        loop {
+            let mut byte = [0u8; 1];
+            cursor.read_exact(&mut byte)?;
+            result |= ((byte[0] & 0x7F) as u64) << shift;
+            if (byte[0] & 0x80) == 0 {
+                break;
+            }
+            shift += 7;
+        }
+        Ok(result)
     }
 
     /// Finds the nearest place to the given coordinates.
