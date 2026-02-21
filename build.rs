@@ -38,7 +38,7 @@ fn main() {
 
     let url = "https://github.com/tn3w/genom/releases/latest/download/places.bin";
 
-    match download_database(&url, &db_path) {
+    match download_database(url, &db_path) {
         Ok(_) => {
             eprintln!("Database downloaded successfully");
             println!("cargo:rerun-if-changed=build.rs");

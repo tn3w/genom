@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 #[cfg(feature = "builder")]
 #[path = "../../build/builder.rs"]
 mod builder;
