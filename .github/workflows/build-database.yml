@@ -30,10 +30,11 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       
-      - name: Build database
-        run: |
-          cargo build --release --bin build-database
-          ./target/release/build-database places.bin
+      - name: Build database binary
+        run: cargo build --release --bin build-database --features builder,no-build-database
+      
+      - name: Generate database
+        run: ./target/release/build-database places.bin
       
       - name: Create Release
         env:

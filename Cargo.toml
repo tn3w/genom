@@ -19,11 +19,11 @@ exclude = ["data/", "target/"]
 [features]
 default = []
 no-build-database = []
+builder = ["reqwest", "zip"]
 
 [[bin]]
 name = "build-database"
 path = "src/bin/build-database.rs"
-required-features = []
 
 [dependencies]
 bincode = "2.0"
@@ -31,11 +31,8 @@ serde = { version = "1.0", features = ["derive"] }
 chrono = "0.4"
 chrono-tz = "0.10"
 rustc-hash = "2.1"
+reqwest = { version = "0.13", features = ["blocking"], optional = true }
+zip = { version = "8.1", optional = true }
 
 [build-dependencies]
 reqwest = { version = "0.13", features = ["blocking"] }
-
-[dev-dependencies]
-reqwest = { version = "0.13", features = ["blocking"] }
-zip = "8.1"
-rustc-hash = "2.1"

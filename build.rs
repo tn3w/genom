@@ -45,7 +45,7 @@ fn main() {
         }
         Err(e) => {
             eprintln!("cargo:warning=Failed to download database: {}", e);
-            eprintln!("cargo:warning=Please run: cargo build --release --bin build-database && ./target/release/build-database {}", db_path.display());
+            eprintln!("cargo:warning=Please run: cargo run --release --bin build-database --features builder,no-build-database && ./target/release/build-database {}", db_path.display());
             std::process::exit(1);
         }
     }
