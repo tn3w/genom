@@ -164,7 +164,7 @@ impl Builder {
 
         println!("Writing database...");
         let mut out = BufWriter::new(File::create(output_path)?);
-        
+
         out.write_all(&(strings.len() as u64).to_le_bytes())?;
         for s in &strings {
             let bytes = s.as_bytes();

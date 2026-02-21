@@ -35,9 +35,9 @@ fn main() {
     }
 
     eprintln!("Downloading places.bin from GitHub releases...");
-    
+
     let url = "https://github.com/tn3w/genom/releases/latest/download/places.bin";
-    
+
     match download_database(&url, &db_path) {
         Ok(_) => {
             eprintln!("Database downloaded successfully");
@@ -53,13 +53,13 @@ fn main() {
 
 fn download_database(url: &str, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let response = reqwest::blocking::get(url)?;
-    
+
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()).into());
     }
-    
+
     let bytes = response.bytes()?;
     std::fs::write(path, bytes)?;
-    
+
     Ok(())
 }
