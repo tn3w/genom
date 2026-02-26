@@ -258,11 +258,17 @@ This takes 2-5 minutes depending on network speed. The database is cached in `ta
 
 ### Skipping the Build
 
-To skip database generation (e.g., for docs.rs or CI):
+To skip database generation (e.g., for docs.rs or CI where you'll provide a pre-built database):
 
 ```toml
 [dependencies]
 genom = { version = "1.0", features = ["no-build-database"] }
+```
+
+You can also manually build the database using the builder binary:
+
+```bash
+cargo run --release --bin build-database --features builder,no-build-database
 ```
 
 ## 🔍 Use Cases

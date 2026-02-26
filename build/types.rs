@@ -81,7 +81,7 @@ impl Location {
 /// All string fields are replaced with u32 indices into a shared string table,
 /// and coordinates are stored as fixed-point i32 values.
 #[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub(crate) struct CompactPlace {
+pub struct CompactPlace {
     /// Index into string table for city name
     pub city: u32,
     /// Index into string table for region name

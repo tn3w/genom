@@ -144,7 +144,7 @@ impl Builder {
     ///
     /// Typical build time: 2-5 minutes depending on network speed.
     /// Uses parallel downloads to minimize wall-clock time.
-    pub(crate) fn build(&mut self, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn build(&mut self, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         println!("Downloading admin codes...");
         self.download_admin_codes()?;
         self.download_admin_iso_codes()?;

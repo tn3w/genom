@@ -1,11 +1,11 @@
-//! Build script for downloading the geocoding database.
+//! Build script for building the geocoding database.
 //!
-//! This script runs at compile time to download the pre-built places.bin database
-//! from GitHub releases instead of building it locally.
+//! This script runs at compile time to build the places.bin database
+//! from GeoNames data instead of downloading a pre-built version.
 //!
 //! # Skip Conditions
 //!
-//! The download is skipped when:
+//! The build is skipped when:
 //! - `no-build-database` feature is enabled
 //! - Building on docs.rs (`DOCS_RS` env var set)
 //! - Running clippy (`CLIPPY_ARGS` env var set)
@@ -13,8 +13,14 @@
 //!
 //! # Output
 //!
-//! Downloads `places.bin` to the cargo `OUT_DIR`, which is then embedded into the binary
+//! Builds `places.bin` to the cargo `OUT_DIR`, which is then embedded into the binary
 //! using `include_bytes!` in the main crate.
+
+#[path = "build/builder.rs"]
+mod builder;
+
+#[path = "build/types.rs"]
+mod types;
 
 use std::path::PathBuf;
 
@@ -34,32 +40,22 @@ fn main() {
         return;
     }
 
-    eprintln!("Downloading places.bin from GitHub releases...");
-
-    let url = "https://github.com/tn3w/genom/releases/latest/download/places.bin";
-
-    match download_database(url, &db_path) {
+    match build_database(&db_path) {
         Ok(_) => {
-            eprintln!("Database downloaded successfully");
+            eprintln!("Database built successfully");
             println!("cargo:rerun-if-changed=build.rs");
+            println!("cargo:rerun-if-changed=build/builder.rs");
+            println!("cargo:rerun-if-changed=build/types.rs");
         }
         Err(e) => {
-            eprintln!("cargo:warning=Failed to download database: {}", e);
-            eprintln!("cargo:warning=Please run: cargo run --release --bin build-database --features builder,no-build-database && ./target/release/build-database {}", db_path.display());
+            eprintln!("cargo:warning=Failed to build database: {}", e);
             std::process::exit(1);
         }
     }
 }
 
-fn download_database(url: &str, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let response = reqwest::blocking::get(url)?;
-
-    if !response.status().is_success() {
-        return Err(format!("HTTP {}", response.status()).into());
-    }
-
-    let bytes = response.bytes()?;
-    std::fs::write(path, bytes)?;
-
+fn build_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let mut builder = builder::Builder::new();
+    builder.build(&path.to_string_lossy())?;
     Ok(())
 }
