@@ -22,7 +22,7 @@ mod builder;
 #[path = "build/types.rs"]
 mod types;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn main() {
     if cfg!(feature = "no-build-database") {
@@ -54,7 +54,7 @@ fn main() {
     }
 }
 
-fn build_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn build_database(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = builder::Builder::new();
     builder.build(&path.to_string_lossy())?;
     Ok(())
