@@ -35,7 +35,7 @@
                         <span class="word" style="animation-delay: 0.2s">into</span>
                         <span class="word accent" style="animation-delay: 0.3s">context</span>
                     </h1>
-                    <p class="hero-description">Fast reverse geocoding with enriched location data. Sub-millisecond lookups for timezone, currency, region, and 15+ other fields.</p>
+                    <p class="hero-description">Fast offline reverse geocoding with enriched location data. Sub-microsecond lookups for timezone, currency, region, postal code, and 14 other fields.</p>
                     
                     <div class="hero-demo">
                         <div class="demo-input">
@@ -62,12 +62,12 @@
                         <a href="#install" class="btn-primary">get started</a>
                         <div class="hero-stats">
                             <div class="stat-item">
-                                <span class="stat-value">&lt;1ms</span>
+                                <span class="stat-value">&lt;1µs</span>
                                 <span class="stat-label">lookup</span>
                             </div>
                             <div class="stat-divider"></div>
                             <div class="stat-item">
-                                <span class="stat-value">16+</span>
+                                <span class="stat-value">18</span>
                                 <span class="stat-label">fields</span>
                             </div>
                             <div class="stat-divider"></div>
@@ -92,12 +92,12 @@
                     <div class="feature-card">
                         <div class="feature-icon">⚡</div>
                         <h3>blazing fast</h3>
-                        <p>Grid-based spatial indexing delivers consistent sub-millisecond performance. Optimized binary format with string interning keeps memory usage minimal.</p>
+                        <p>Two-level spatial grid + zero-copy parse of an embedded ~37 MB binary blob. Varint+zigzag deltas and string interning keep the footprint small.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🎯</div>
                         <h3>rich data</h3>
-                        <p>16+ fields per location including timezone, currency, postal code, region, continent, EU membership, and DST status. Everything you need in one call.</p>
+                        <p>18 fields per location including timezone, currency, postal code, region, continent, EU membership, and DST status. Everything you need in one call.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🔧</div>
