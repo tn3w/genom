@@ -51,7 +51,11 @@ fn fetch(cache: &Path, url: &str, name: &str) -> Result<Vec<u8>, Box<dyn Error>>
         return Ok(fs::read(&path)?);
     }
     let mut buf = Vec::new();
-    ureq::get(url).call()?.into_reader().read_to_end(&mut buf)?;
+    ureq::get(url)
+        .call()?
+        .into_body()
+        .into_reader()
+        .read_to_end(&mut buf)?;
     fs::write(&path, &buf)?;
     Ok(buf)
 }

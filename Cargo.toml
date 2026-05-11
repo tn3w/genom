@@ -31,10 +31,10 @@ chrono-tz = "0.10"
 rustc-hash = "2.1"
 
 [build-dependencies]
-ureq = "2.10"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+ureq = "3.3"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 rustc-hash = "2.1"
-shapefile = "0.6"
+shapefile = "0.8"
 
 [package.metadata.funding]
 buy_me_a_coffee = "tn3w"
