@@ -18,7 +18,14 @@ fn main() {
     if bin.exists() {
         return;
     }
-    let cache = out.join("geonames-cache");
-    std::fs::create_dir_all(&cache).unwrap();
+    let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let repo_cache = manifest.join("data");
+    let cache = if repo_cache.exists() {
+        repo_cache
+    } else {
+        let fallback = out.join("geonames-cache");
+        std::fs::create_dir_all(&fallback).unwrap();
+        fallback
+    };
     builder::build(&cache, &bin).unwrap();
 }

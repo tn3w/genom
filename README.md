@@ -59,6 +59,14 @@ cargo build --release
 ./target/release/genom 48.8566 2.3522
 ```
 
+## Build cache
+
+`build.rs` looks for raw GeoNames + Natural Earth downloads in `data/` first,
+then falls back to network fetch into `OUT_DIR/geonames-cache/`. The repo
+ships with `data/` populated so CI builds without network. `data/` is
+excluded from the published crate via `Cargo.toml`'s `exclude` — end users
+installing from crates.io download fresh data on first build.
+
 ## Skip the build
 
 For docs.rs / CI without network:
