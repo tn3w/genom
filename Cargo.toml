@@ -1,5 +1,5 @@
 [workspace]
-members = ["."]
+members = [".", "golf"]
 
 [package]
 name = "genom"
@@ -18,17 +18,22 @@ categories = ["algorithms", "data-structures", "science::geo"]
 exclude = ["data/", "target/", "build/cache/"]
 
 [features]
-default = []
+default = ["build-tool"]
 no-build-database = []
+build-tool = ["dep:ureq", "dep:zip", "dep:shapefile"]
 
 [[bin]]
 name = "genom"
 path = "src/main.rs"
+required-features = ["build-tool"]
 
 [dependencies]
 chrono = "0.4"
 chrono-tz = "0.10"
 rustc-hash = "2.1"
+ureq = { version = "3.3", optional = true }
+zip = { version = "8.6", default-features = false, features = ["deflate"], optional = true }
+shapefile = { version = "0.8", optional = true }
 
 [build-dependencies]
 ureq = "3.3"

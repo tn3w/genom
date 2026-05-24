@@ -1,0 +1,14 @@
+[package]
+name = "genom-golf"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Minimal self-contained reverse-geocoding engine over a prebuilt geo.bin"
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+chrono = "0.4"
+chrono-tz = "0.10"

@@ -1,11 +1,11 @@
-#[path = "build/builder.rs"]
+#[path = "src/builder.rs"]
 mod builder;
 
 use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=build/builder.rs");
+    println!("cargo:rerun-if-changed=src/builder.rs");
     if cfg!(feature = "no-build-database") {
         return;
     }

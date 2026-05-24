@@ -25,7 +25,12 @@
 
 mod database;
 pub mod enrichment;
+pub mod loader;
 mod types;
+
+/// Offline database builder (downloads GeoNames + Natural Earth → `geo.bin`).
+#[cfg(feature = "build-tool")]
+pub mod builder;
 
 pub use database::Geocoder;
 pub use types::{Location, Place};

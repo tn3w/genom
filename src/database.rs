@@ -32,9 +32,14 @@ pub struct Geocoder {
 impl Geocoder {
     /// Lazily-initialized global instance. Cheap to call repeatedly.
     pub fn global() -> &'static Self {
-        GEOCODER.get_or_init(|| Self {
-            db: Db::parse(DATA),
-        })
+        GEOCODER.get_or_init(|| Self::from_bytes(DATA))
+    }
+
+    /// Construct a geocoder from a previously-built `geo.bin` byte slice.
+    ///
+    /// Pair with [`crate::loader::load_from_file`] for disk-backed databases.
+    pub fn from_bytes(data: &'static [u8]) -> Self {
+        Self { db: Db::parse(data) }
     }
 
     /// Reverse-geocode `(latitude, longitude)` into a fully enriched [`Place`].

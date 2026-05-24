@@ -56,15 +56,52 @@ section headers. See `build/builder.rs`.
 
 ```bash
 cargo build --release
-./target/release/genom 48.8566 2.3522
+./target/release/genom 48.8566 2.3522     # reverse-geocode
+./target/release/genom build ./geo.bin    # build the .bin standalone
+./target/release/genom check ./geo.bin    # exit 0 if present, 1 if missing
 ```
+
+`build` skips if the file already exists. Raw sources are read from `./data/`
+when present, otherwise downloaded into `<out_dir>/genom-cache/`.
+
+## Load from disk
+
+Skip the embedded blob and load a pre-built `geo.bin` at runtime:
+
+```rust
+let geo = genom::loader::load_from_file("geo.bin")?;
+let place = geo.lookup(40.7128, -74.0060);
+```
+
+One syscall, leaked to `&'static [u8]`, pages stay resident → sub-µs lookups.
+See [`src/loader.rs`](src/loader.rs).
+
+## `genom-golf` self-contained lookup crate
+
+[`golf/`](golf/) is a standalone sibling crate. Single file
+[`golf/src/lib.rs`](golf/src/lib.rs), no `genom` dep, only `chrono` + `chrono-tz`.
+Same `Place` output, byte-identical lookup results.
+
+```rust
+let geo = genom_golf::Geo::open("geo.bin")?;
+let place = geo.lookup(40.7128, -74.0060);
+```
+
+Optimized for minimal memory + fast load/lookup:
+
+- Owns `Box<[u8]>` (no leak, no embedded blob).
+- Sorted `Box<[(u32, u32)]>` grid indexes + binary search → no `FxHashMap`,
+  ~3× smaller index than the embedded path.
+- Unaligned `u32` + varint decode on demand; only the two grid arrays cached.
+- Enrichment via sorted `&'static [(u16, CInfo)]` country table, single
+  binary search instead of multiple hashmap probes.
 
 ## Build cache
 
 `build.rs` looks for raw GeoNames + Natural Earth downloads in `data/` first,
 then falls back to network fetch into `OUT_DIR/geonames-cache/`. The repo
 ships with `data/` populated so CI builds without network. `data/` is
-excluded from the published crate via `Cargo.toml`'s `exclude` — end users
+excluded from the published crate via `Cargo.toml`'s `exclude` end users
 installing from crates.io download fresh data on first build.
 
 ## Skip the build
@@ -95,8 +132,8 @@ cargo doc --no-deps --open
 
 ## Data sources
 
-- [GeoNames.org](https://www.geonames.org/) — cities, admin codes, postal — CC-BY 4.0
-- [Natural Earth](https://www.naturalearthdata.com/) — country polygons — public domain
+- [GeoNames.org](https://www.geonames.org/) cities, admin codes, postal CC-BY 4.0
+- [Natural Earth](https://www.naturalearthdata.com/) country polygons public domain
 
 ## License
 

@@ -1,0 +1,95 @@
+name: Build
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/**'
+      - 'golf/**'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', 'golf/Cargo.toml') }}
+
+      - name: Build genom CLI
+        run: cargo build --release --bin genom
+
+      - name: Build geo.bin
+        run: |
+          ./target/release/genom build geo.bin
+          ./target/release/genom check geo.bin
+          ./target/release/genom 40.7128 -74.0060
+          ./target/release/genom 48.8566 2.3522
+          ./target/release/genom 35.6762 139.6503
+
+      - name: Verify with genom-golf
+        run: |
+          cargo build --release -p genom-golf
+          cat > /tmp/golf_smoke.rs <<'EOF'
+          fn main() {
+              let geo = genom_golf::Geo::open("geo.bin").unwrap();
+              for (la, lo) in &[(40.7128, -74.0060), (48.8566, 2.3522), (35.6762, 139.6503)] {
+                  let p = geo.lookup(*la, *lo).expect("lookup");
+                  println!("{} {} {} {}", p.city, p.country_code, p.postal_code, p.timezone);
+              }
+          }
+          EOF
+          RLIB=$(ls target/release/deps/libgenom_golf-*.rlib | head -1)
+          rustc --edition 2024 -C panic=abort \
+            -L target/release/deps \
+            --extern genom_golf=$RLIB \
+            /tmp/golf_smoke.rs -o /tmp/golf_smoke
+          /tmp/golf_smoke
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(date -u +%Y%m%d-%H%M%S)"
+          SIZE=$(du -h geo.bin | cut -f1)
+          gh release create "$TAG" \
+            geo.bin \
+            --title "genom $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --notes "Automated genom database build.
+
+          **geo.bin** ($SIZE) — reverse-geocoding database
+          - GeoNames cities500, admin1/2, countryInfo, postal codes
+          - Natural Earth country polygons
+
+          \`\`\`bash
+          curl -L -O https://github.com/${{ github.repository }}/releases/download/${TAG}/geo.bin
+          \`\`\`
+
+          Load via [genom-golf](https://github.com/${{ github.repository }}/tree/master/golf):
+
+          \`\`\`rust
+          let geo = genom_golf::Geo::open(\"geo.bin\")?;
+          let place = geo.lookup(40.7128, -74.0060);
+          \`\`\`"
+
+      - name: Prune old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | tail -n +6 \
+            | xargs -rI{} gh release delete {} --yes --cleanup-tag

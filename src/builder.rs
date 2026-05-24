@@ -14,6 +14,7 @@ const URL_POSTAL: &str = "https://download.geonames.org/export/zip/allCountries.
 const URL_NE_COUNTRIES: &str =
     "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip";
 
+/// Fetch sources (cached in `cache`), parse, and write `geo.bin` to `out_file`.
 pub fn build(cache: &Path, out_file: &Path) -> Result<(), Box<dyn Error>> {
     let cities_zip = fetch(cache, URL_CITIES, "cities500.zip")?;
     let admin1 = fetch_text(cache, URL_ADMIN1, "admin1.txt")?;
