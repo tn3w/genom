@@ -240,51 +240,361 @@
     </footer>
 
     <script>
-        const examples = {
-            '40.7128, -74.0060': {
-                city: 'New York',
-                country: 'United States',
-                timezone: 'America/New_York',
-                currency: 'USD',
-                region: 'NY'
-            },
-            '51.5074, -0.1278': {
-                city: 'London',
-                country: 'United Kingdom',
-                timezone: 'Europe/London',
-                currency: 'GBP',
-                region: 'ENG'
-            },
-            '35.6762, 139.6503': {
-                city: 'Tokyo',
-                country: 'Japan',
-                timezone: 'Asia/Tokyo',
-                currency: 'JPY',
-                region: '13'
+        const DB_URL = "geo.bin";
+
+        const COUNTRIES={AD:["Andorra","EUR"],AE:["United Arab Emirates","AED"],AF:["Afghanistan","AFN"],AG:["Antigua and Barbuda","XCD"],AI:["Anguilla","XCD"],AL:["Albania","ALL"],AM:["Armenia","AMD"],AN:["Netherlands Antilles","ANG"],AO:["Angola","AOA"],AQ:["Antarctica","USD"],AR:["Argentina","ARS"],AS:["American Samoa","USD"],AT:["Austria","EUR"],AU:["Australia","AUD"],AW:["Aruba","AWG"],AZ:["Azerbaijan","AZN"],BA:["Bosnia and Herzegovina","BAM"],BB:["Barbados","BBD"],BD:["Bangladesh","BDT"],BE:["Belgium","EUR"],BF:["Burkina Faso","XOF"],BG:["Bulgaria","BGN"],BH:["Bahrain","BHD"],BI:["Burundi","BIF"],BJ:["Benin","XOF"],BM:["Bermuda","BMD"],BN:["Brunei","BND"],BO:["Bolivia","BOB"],BR:["Brazil","BRL"],BS:["Bahamas","BSD"],BT:["Bhutan","BTN"],BV:["Bouvet Island","NOK"],BW:["Botswana","BWP"],BY:["Belarus","BYR"],BZ:["Belize","BZD"],CA:["Canada","CAD"],CC:["Cocos (Keeling) Islands","AUD"],CD:["Democratic Republic of the Congo","CDF"],CF:["Central African Republic","XAF"],CG:["Republic of the Congo","XAF"],CH:["Switzerland","CHF"],CI:["Ivory Coast","XOF"],CK:["Cook Islands","NZD"],CL:["Chile","CLP"],CM:["Cameroon","XAF"],CN:["China","CNY"],CO:["Colombia","COP"],CR:["Costa Rica","CRC"],CS:["Serbia and Montenegro","RSD"],CU:["Cuba","CUP"],CV:["Cape Verde","CVE"],CX:["Christmas Island","AUD"],CY:["Cyprus","EUR"],CZ:["Czech Republic","CZK"],DE:["Germany","EUR"],DJ:["Djibouti","DJF"],DK:["Denmark","DKK"],DM:["Dominica","XCD"],DO:["Dominican Republic","DOP"],DZ:["Algeria","DZD"],EC:["Ecuador","USD"],EE:["Estonia","EUR"],EG:["Egypt","EGP"],EH:["Western Sahara","MAD"],ER:["Eritrea","ERN"],ES:["Spain","EUR"],ET:["Ethiopia","ETB"],FI:["Finland","EUR"],FJ:["Fiji","FJD"],FK:["Falkland Islands","FKP"],FM:["Micronesia","USD"],FO:["Faroe Islands","DKK"],FR:["France","EUR"],GA:["Gabon","XAF"],GB:["United Kingdom","GBP"],GD:["Grenada","XCD"],GE:["Georgia","GEL"],GF:["French Guiana","EUR"],GH:["Ghana","GHS"],GI:["Gibraltar","GIP"],GL:["Greenland","DKK"],GM:["Gambia","GMD"],GN:["Guinea","GNF"],GP:["Guadeloupe","EUR"],GQ:["Equatorial Guinea","XAF"],GR:["Greece","EUR"],GS:["South Georgia and the South Sandwich Islands","GBP"],GT:["Guatemala","GTQ"],GU:["Guam","USD"],GW:["Guinea-Bissau","XOF"],GY:["Guyana","GYD"],HK:["Hong Kong","HKD"],HM:["Heard Island and McDonald Islands","AUD"],HN:["Honduras","HNL"],HR:["Croatia","HRK"],HT:["Haiti","HTG"],HU:["Hungary","HUF"],ID:["Indonesia","IDR"],IE:["Ireland","EUR"],IL:["Israel","ILS"],IN:["India","INR"],IO:["British Indian Ocean Territory","USD"],IQ:["Iraq","IQD"],IR:["Iran","IRR"],IS:["Iceland","ISK"],IT:["Italy","EUR"],JM:["Jamaica","JMD"],JO:["Jordan","JOD"],JP:["Japan","JPY"],KE:["Kenya","KES"],KG:["Kyrgyzstan","KGS"],KH:["Cambodia","KHR"],KI:["Kiribati","AUD"],KM:["Comoros","KMF"],KN:["Saint Kitts and Nevis","XCD"],KP:["North Korea","KPW"],KR:["South Korea","KRW"],KW:["Kuwait","KWD"],KY:["Cayman Islands","KYD"],KZ:["Kazakhstan","KZT"],LA:["Laos","LAK"],LB:["Lebanon","LBP"],LC:["Saint Lucia","XCD"],LI:["Liechtenstein","CHF"],LK:["Sri Lanka","LKR"],LR:["Liberia","LRD"],LS:["Lesotho","LSL"],LT:["Lithuania","EUR"],LU:["Luxembourg","EUR"],LV:["Latvia","EUR"],LY:["Libya","LYD"],MA:["Morocco","MAD"],MC:["Monaco","EUR"],MD:["Moldova","MDL"],ME:["Montenegro",""],MG:["Madagascar","MGA"],MH:["Marshall Islands","USD"],MK:["Macedonia","MKD"],ML:["Mali","XOF"],MM:["Myanmar","MMK"],MN:["Mongolia","MNT"],MO:["Macau","MOP"],MP:["Northern Mariana Islands","USD"],MQ:["Martinique","EUR"],MR:["Mauritania","MRU"],MS:["Montserrat","XCD"],MT:["Malta","EUR"],MU:["Mauritius","MUR"],MV:["Maldives","MVR"],MW:["Malawi","MWK"],MX:["Mexico","MXN"],MY:["Malaysia","MYR"],MZ:["Mozambique","MZN"],NA:["Namibia","NAD"],NC:["New Caledonia","XPF"],NE:["Niger","XOF"],NF:["Norfolk Island","AUD"],NG:["Nigeria","NGN"],NI:["Nicaragua","NIO"],NL:["Netherlands","EUR"],NO:["Norway","NOK"],NP:["Nepal","NPR"],NR:["Nauru","AUD"],NU:["Niue","NZD"],NZ:["New Zealand","NZD"],OM:["Oman","OMR"],PA:["Panama","PAB"],PE:["Peru","PEN"],PF:["French Polynesia","XPF"],PG:["Papua New Guinea","PGK"],PH:["Philippines","PHP"],PK:["Pakistan","PKR"],PL:["Poland","PLN"],PM:["Saint Pierre and Miquelon","EUR"],PN:["Pitcairn","NZD"],PR:["Puerto Rico","USD"],PS:["Palestinian Territory","ILS"],PT:["Portugal","EUR"],PW:["Palau","USD"],PY:["Paraguay","PYG"],QA:["Qatar","QAR"],RE:["Reunion","EUR"],RO:["Romania","RON"],RS:["Serbia",""],RU:["Russia","RUB"],RW:["Rwanda","RWF"],SA:["Saudi Arabia","SAR"],SB:["Solomon Islands","SBD"],SC:["Seychelles","SCR"],SD:["Sudan","SDG"],SE:["Sweden","SEK"],SG:["Singapore","SGD"],SH:["Saint Helena","SHP"],SI:["Slovenia","EUR"],SJ:["Svalbard and Jan Mayen","NOK"],SK:["Slovakia","EUR"],SL:["Sierra Leone","SLL"],SM:["San Marino","EUR"],SN:["Senegal","XOF"],SO:["Somalia","SOS"],SR:["Suriname","SRD"],ST:["São Tomé and Príncipe","STN"],SV:["El Salvador","SVC"],SY:["Syria","SYP"],SZ:["Swaziland","SZL"],TC:["Turks and Caicos Islands","USD"],TD:["Chad","XAF"],TF:["French Southern Territories","EUR"],TG:["Togo","XOF"],TH:["Thailand","THB"],TJ:["Tajikistan","TJS"],TK:["Tokelau","NZD"],TL:["East Timor","USD"],TM:["Turkmenistan","TMT"],TN:["Tunisia","TND"],TO:["Tonga","TOP"],TR:["Turkey","TRY"],TT:["Trinidad and Tobago","TTD"],TV:["Tuvalu","AUD"],TW:["Taiwan","TWD"],TZ:["Tanzania","TZS"],UA:["Ukraine","UAH"],UG:["Uganda","UGX"],UM:["United States Minor Outlying Islands","USD"],US:["United States","USD"],UY:["Uruguay","UYU"],UZ:["Uzbekistan","UZS"],VA:["Vatican City","EUR"],VC:["Saint Vincent and the Grenadines","XCD"],VE:["Venezuela","VES"],VG:["British Virgin Islands","USD"],VI:["U.S. Virgin Islands","USD"],VN:["Vietnam","VND"],VU:["Vanuatu","VUV"],WF:["Wallis and Futuna","XPF"],WS:["Samoa","WST"],YE:["Yemen","YER"],YT:["Mayotte","EUR"],ZA:["South Africa","ZAR"],ZM:["Zambia","ZMW"],ZW:["Zimbabwe","ZWL"]};
+
+        const inputEl = document.getElementById("coords-input");
+        const outputEl = document.getElementById("demo-output");
+        const COORD = /^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/;
+        const dec = new TextDecoder();
+        const fold = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+        let bytes, dv, P = 0, ready = false;
+        let strCount, strOffOff, strBodyOff, ccOff;
+        let gridCells, gridOffs, citiesStart, citiesEnd, pdir;
+        let forwardIndex = null;
+        const postalCache = new Map();
+
+        function setResult(a, b) {
+            outputEl.innerHTML = "";
+            const d1 = document.createElement("div");
+            const d2 = document.createElement("div");
+            d1.textContent = a;
+            d2.textContent = b;
+            outputEl.append(d1, d2);
+        }
+
+        function u32(o) {
+            return dv.getUint32(o, true);
+        }
+
+        function rv() {
+            let v = 0, m = 1, b;
+            do {
+                b = bytes[P++];
+                v += (b & 0x7f) * m;
+                m *= 128;
+            } while (b & 0x80);
+            return v;
+        }
+
+        function zz(v) {
+            return v % 2 ? -(v + 1) / 2 : v / 2;
+        }
+
+        function decodeStr(a, b) {
+            return dec.decode(bytes.subarray(a, b));
+        }
+
+        function strAt(i) {
+            if (i + 1 > strCount) return "";
+            const s = u32(strOffOff + 4 * i);
+            const e = u32(strOffOff + 4 * (i + 1));
+            return decodeStr(strBodyOff + s, strBodyOff + e);
+        }
+
+        function ccIso(i) {
+            const p = ccOff + i * 2;
+            return String.fromCharCode(bytes[p], bytes[p + 1]);
+        }
+
+        function decodeCellDir(off) {
+            const n = u32(off);
+            const cells = new Uint32Array(n);
+            const offs = new Uint32Array(n);
+            P = off + 4;
+            let c = 0, o = 0;
+            for (let i = 0; i < n; i++) {
+                c += rv();
+                o += rv();
+                cells[i] = c;
+                offs[i] = o;
             }
-        };
+            return { cells, offs };
+        }
 
-        const inputEl = document.getElementById('coords-input');
-        const outputEl = document.getElementById('demo-output');
+        function bsearch(cells, offs, key) {
+            let lo = 0, hi = cells.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                const v = cells[mid];
+                if (v === key) return offs[mid];
+                if (v < key) lo = mid + 1;
+                else hi = mid - 1;
+            }
+            return -1;
+        }
 
-        function updateOutput() {
-            const value = inputEl.value.trim();
-            const example = examples[value];
-            
-            if (example) {
-                outputEl.innerHTML = `
-                    <div>${example.city}, ${example.country}</div>
-                    <div>${example.timezone} • ${example.currency} • ${example.region}</div>
-                `;
-            } else {
-                outputEl.innerHTML = `
-                    <div>Try example coordinates</div>
-                    <div>40.7128, -74.0060</div>
-                `;
+        function cellOf(lat, lon, scale, maxLa, maxLo) {
+            let la = Math.min(Math.max(Math.floor((lat + 90) * scale), 0), maxLa - 1);
+            let lo = Math.min(Math.max(Math.floor((lon + 180) * scale), 0), maxLo - 1);
+            return la * maxLo + lo;
+        }
+
+        function parse(buf) {
+            bytes = buf;
+            dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+            const offStr = u32(8), offCc = u32(16), offGrid = u32(24);
+            const offCities = u32(32), lenCities = u32(36);
+            const offPdir = u32(40), offPostal = u32(48);
+            strCount = u32(offStr);
+            strOffOff = offStr + 4;
+            strBodyOff = strOffOff + 4 * (strCount + 1);
+            ccOff = offCc + 4;
+            const grid = decodeCellDir(offGrid);
+            gridCells = grid.cells;
+            gridOffs = grid.offs;
+            citiesStart = offCities;
+            citiesEnd = offCities + lenCities;
+            const count = u32(offPdir);
+            pdir = new Map();
+            let p = offPdir + 4;
+            for (let i = 0; i < count; i++) {
+                const cc = dv.getUint16(p, true);
+                pdir.set(cc, [offPostal + u32(p + 4), offPostal + u32(p + 8)]);
+                p += 12;
             }
         }
 
-        inputEl.addEventListener('input', updateOutput);
+        function scanCity(off, latq, lonq, best) {
+            P = citiesStart + off;
+            const n = rv();
+            let lat = 0, lon = 0;
+            for (let i = 0; i < n; i++) {
+                lat += zz(rv());
+                lon += zz(rv());
+                const nameI = rv(), a1 = rv(), a2 = rv(), a1c = rv(), tz = rv(), cc = rv();
+                const dx = lat - latq, dy = lon - lonq, d2 = dx * dx + dy * dy;
+                if (d2 < best.d2) {
+                    best.d2 = d2;
+                    best.hit = { lat, lon, nameI, a1c, tz, cc };
+                }
+            }
+        }
+
+        function nearestCity(lat, lon) {
+            if (citiesEnd <= citiesStart) return null;
+            const latq = Math.trunc(lat * 1e6), lonq = Math.trunc(lon * 1e6);
+            const cell = cellOf(lat, lon, 10, 1800, 3600);
+            const baseLa = Math.floor(cell / 3600), baseLo = cell % 3600;
+            const best = { d2: Infinity, hit: null };
+            let r = 1;
+            for (;;) {
+                for (let dla = -r; dla <= r; dla++) {
+                    for (let dlo = -r; dlo <= r; dlo++) {
+                        const la = baseLa + dla, lo = baseLo + dlo;
+                        if (la < 0 || la >= 1800 || lo < 0 || lo >= 3600) continue;
+                        const off = bsearch(gridCells, gridOffs, la * 3600 + lo);
+                        if (off >= 0) scanCity(off, latq, lonq, best);
+                    }
+                }
+                if (best.hit || r > 200) break;
+                r = Math.max(r * 2, r + 1);
+            }
+            return best.hit;
+        }
+
+        function parsePostalCountry(start) {
+            let i = start;
+            const tupleCount = u32(i);
+            i += 4 + tupleCount * 12;
+            const psCount = u32(i);
+            i += 4;
+            const psOffOff = i;
+            i += 4 * (psCount + 1);
+            const psBodyOff = i + 0;
+            i += u32(psOffOff + 4 * psCount);
+            P = i;
+            const cellCount = rv();
+            const cells = new Uint32Array(cellCount);
+            const offs = new Uint32Array(cellCount);
+            let c = 0, o = 0;
+            for (let k = 0; k < cellCount; k++) {
+                c += rv();
+                o += rv();
+                cells[k] = c;
+                offs[k] = o;
+            }
+            return { psOffOff, psBodyOff, cells, offs, bodyOff: P };
+        }
+
+        function getPostal(cc) {
+            if (postalCache.has(cc)) return postalCache.get(cc);
+            const range = pdir.get(cc);
+            const parsed = range ? parsePostalCountry(range[0]) : null;
+            postalCache.set(cc, parsed);
+            return parsed;
+        }
+
+        function scanPostalCell(pos, latq, lonq, best) {
+            P = pos;
+            const n = rv();
+            let lat = 0, lon = 0;
+            for (let i = 0; i < n; i++) {
+                lat += zz(rv());
+                lon += zz(rv());
+                const ps = rv();
+                rv();
+                const dx = lat - latq, dy = lon - lonq, d2 = dx * dx + dy * dy;
+                if (d2 < best.d2) {
+                    best.d2 = d2;
+                    best.ps = ps;
+                }
+            }
+        }
+
+        function nearestPostal(cc, lat, lon) {
+            const country = getPostal(cc);
+            if (!country) return "";
+            const latq = Math.trunc(lat * 1e6), lonq = Math.trunc(lon * 1e6);
+            const cell = cellOf(lat, lon, 100, 18000, 36000);
+            const baseLa = Math.floor(cell / 36000), baseLo = cell % 36000;
+            const best = { d2: Infinity, ps: -1 };
+            let r = 1;
+            for (;;) {
+                for (let dla = -r; dla <= r; dla++) {
+                    for (let dlo = -r; dlo <= r; dlo++) {
+                        const la = baseLa + dla, lo = baseLo + dlo;
+                        if (la < 0 || la >= 18000 || lo < 0 || lo >= 36000) continue;
+                        const off = bsearch(country.cells, country.offs, la * 36000 + lo);
+                        if (off >= 0) scanPostalCell(country.bodyOff + off, latq, lonq, best);
+                    }
+                }
+                if (best.ps >= 0 || r > 1000) break;
+                r = Math.max(r * 2, r + 1);
+            }
+            if (best.ps < 0) return "";
+            const s = u32(country.psOffOff + 4 * best.ps);
+            const e = u32(country.psOffOff + 4 * (best.ps + 1));
+            return decodeStr(country.psBodyOff + s, country.psBodyOff + e);
+        }
+
+        function place(hit) {
+            const cc = ccIso(hit.cc);
+            const info = COUNTRIES[cc];
+            return {
+                city: strAt(hit.nameI),
+                country: info ? info[0] : cc || "Unknown",
+                currency: info ? info[1] : "",
+                region: strAt(hit.a1c),
+                timezone: strAt(hit.tz),
+                lat: hit.lat / 1e6,
+                lon: hit.lon / 1e6,
+            };
+        }
+
+        function buildForward() {
+            const names = [], hits = [];
+            P = citiesStart;
+            while (P < citiesEnd) {
+                const n = rv();
+                let lat = 0, lon = 0;
+                for (let i = 0; i < n; i++) {
+                    lat += zz(rv());
+                    lon += zz(rv());
+                    const nameI = rv(), a1 = rv(), a2 = rv(), a1c = rv(), tz = rv(), cc = rv();
+                    names.push(fold(strAt(nameI)));
+                    hits.push({ lat, lon, nameI, a1c, tz, cc });
+                }
+            }
+            forwardIndex = { names, hits };
+        }
+
+        function forward(query) {
+            if (!forwardIndex) buildForward();
+            const s = fold(query.trim());
+            if (!s) return null;
+            const { names } = forwardIndex;
+            let starts = -1, includes = -1;
+            for (let i = 0; i < names.length; i++) {
+                const nm = names[i];
+                if (nm === s) return place(forwardIndex.hits[i]);
+                if (starts < 0 && nm.startsWith(s)) starts = i;
+                else if (includes < 0 && nm.includes(s)) includes = i;
+            }
+            const i = starts >= 0 ? starts : includes;
+            return i >= 0 ? place(forwardIndex.hits[i]) : null;
+        }
+
+        function coordLine(p) {
+            return [`${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`, p.timezone]
+                .filter(Boolean).join(" • ");
+        }
+
+        function detailLine(p) {
+            return [p.timezone, p.currency, p.region].filter(Boolean).join(" • ");
+        }
+
+        function run() {
+            if (!ready) return;
+            const value = inputEl.value.trim();
+            if (!value) {
+                setResult("Enter coordinates or a city", "40.7128, -74.0060");
+                return;
+            }
+            const m = value.match(COORD);
+            if (m) {
+                const lat = +m[1], lon = +m[2];
+                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                    const hit = nearestCity(lat, lon);
+                    if (hit) {
+                        const p = place(hit);
+                        setResult(`${p.city}, ${p.country}`, detailLine(p));
+                        return;
+                    }
+                    setResult("No result", "try other coordinates");
+                    return;
+                }
+            }
+            const p = forward(value);
+            if (p) {
+                setResult(`${p.city}, ${p.country}`, coordLine(p));
+                return;
+            }
+            setResult("No match", "try a city name or coordinates");
+        }
+
+        async function loadDatabase() {
+            const res = await fetch(DB_URL);
+            if (!res.ok) throw new Error(res.status);
+            const total = +res.headers.get("content-length") || 0;
+            const reader = res.body.getReader();
+            const chunks = [];
+            let received = 0;
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                received += value.length;
+                const label = total
+                    ? `${Math.round((received / total) * 100)}%`
+                    : `${(received / 1048576).toFixed(1)} MB`;
+                setResult(`loading geo.bin… ${label}`, "runs fully in your browser");
+            }
+            const buf = new Uint8Array(received);
+            let pos = 0;
+            for (const chunk of chunks) {
+                buf.set(chunk, pos);
+                pos += chunk.length;
+            }
+            return buf;
+        }
+
+        let timer;
+        inputEl.addEventListener("input", () => {
+            clearTimeout(timer);
+            timer = setTimeout(run, 150);
+        });
+
+        setResult("loading geo.bin…", "runs fully in your browser");
+        loadDatabase()
+            .then((buf) => {
+                parse(buf);
+                ready = true;
+                run();
+            })
+            .catch(() => setResult("database unavailable", "please try again later"));
     </script>
 </body>
 </html>

@@ -43,6 +43,11 @@ jobs:
           find docs -name "*.html" -exec sed -i "s|VERSION_CUT|${VERSION_CUT}|g" {} \;
           find docs -name "*.html" -exec sed -i "s|VERSION|v${VERSION}|g" {} \;
 
+      - name: Bundle latest geo.bin
+        run: |
+          curl -fL -o docs/geo.bin \
+            https://github.com/${{ github.repository }}/releases/latest/download/geo.bin
+
       - name: Minify assets
         run: |
           find docs -name "*.css" -type f | while read file; do

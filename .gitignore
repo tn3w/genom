@@ -24,4 +24,4 @@ Cargo.lock
 # VSCode
 .vscode/
 
-data/geo.bin
+*geo.bin
