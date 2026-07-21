@@ -23,13 +23,16 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Record rustc version
+        run: echo "RUSTC_VERSION=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_ENV"
+
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', 'golf/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.toml', 'golf/Cargo.toml') }}
 
       - name: Build genom CLI
         run: cargo build --release --bin genom
@@ -43,23 +46,7 @@ jobs:
           ./target/release/genom 35.6762 139.6503
 
       - name: Verify with genom-golf
-        run: |
-          cargo build --release -p genom-golf
-          cat > /tmp/golf_smoke.rs <<'EOF'
-          fn main() {
-              let geo = genom_golf::Geo::open("geo.bin").unwrap();
-              for (la, lo) in &[(40.7128, -74.0060), (48.8566, 2.3522), (35.6762, 139.6503)] {
-                  let p = geo.lookup(*la, *lo).expect("lookup");
-                  println!("{} {} {} {}", p.city, p.country_code, p.postal_code, p.timezone);
-              }
-          }
-          EOF
-          RLIB=$(ls target/release/deps/libgenom_golf-*.rlib | head -1)
-          rustc --edition 2024 -C panic=abort \
-            -L target/release/deps \
-            --extern genom_golf=$RLIB \
-            /tmp/golf_smoke.rs -o /tmp/golf_smoke
-          /tmp/golf_smoke
+        run: cargo run --release -p genom-golf --example smoke
 
       - name: Create Release
         env:
