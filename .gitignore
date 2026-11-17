@@ -25,3 +25,5 @@ Cargo.lock
 .vscode/
 
 *geo.bin
+
+__pycache__/

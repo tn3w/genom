@@ -7,7 +7,6 @@ on:
     branches: [main, master]
     paths:
       - 'src/**'
-      - 'golf/**'
       - 'build.rs'
       - 'Cargo.toml'
       - '.github/workflows/build.yml'
@@ -32,21 +31,20 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.toml', 'golf/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.toml') }}
 
       - name: Build genom CLI
         run: cargo build --release --bin genom
 
       - name: Build geo.bin
-        run: |
-          ./target/release/genom build geo.bin
-          ./target/release/genom check geo.bin
-          ./target/release/genom 40.7128 -74.0060
-          ./target/release/genom 48.8566 2.3522
-          ./target/release/genom 35.6762 139.6503
+        run: ./target/release/genom build geo.bin
 
-      - name: Verify with genom-golf
-        run: cargo run --release -p genom-golf --example smoke
+      - name: Verify geo.bin
+        run: |
+          ./target/release/genom 40.7128 -74.0060 geo.bin | grep -q 'code: "US"'
+          ./target/release/genom 48.8566 2.3522 geo.bin | grep -q 'code: "FR"'
+          ./target/release/genom 35.6762 139.6503 geo.bin | grep -q 'code: "JP"'
+          python3 lookup.py 48.8566 2.3522 geo.bin | grep -q "'FR'"
 
       - name: Create Release
         env:
@@ -61,17 +59,14 @@ jobs:
 
           **geo.bin** ($SIZE) — reverse-geocoding database
           - GeoNames cities500, admin1/2, countryInfo, postal codes
-          - Natural Earth country polygons
 
           \`\`\`bash
           curl -L -O https://github.com/${{ github.repository }}/releases/download/${TAG}/geo.bin
           \`\`\`
 
-          Load via [genom-golf](https://github.com/${{ github.repository }}/tree/master/golf):
-
           \`\`\`rust
-          let geo = genom_golf::Geo::open(\"geo.bin\")?;
-          let place = geo.lookup(40.7128, -74.0060);
+          let geocoder = genom::Geocoder::open(\"geo.bin\")?;
+          let place = geocoder.lookup(40.7128, -74.0060);
           \`\`\`"
 
       - name: Prune old releases
@@ -80,3 +75,11 @@ jobs:
         run: |
           gh release list --limit 100 --json tagName --jq '.[].tagName' | tail -n +6 \
             | xargs -rI{} gh release delete {} --yes --cleanup-tag
+
+  deploy-docs:
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-docs.yml

@@ -35,7 +35,7 @@
                         <span class="word" style="animation-delay: 0.2s">into</span>
                         <span class="word accent" style="animation-delay: 0.3s">context</span>
                     </h1>
-                    <p class="hero-description">Fast offline reverse geocoding with enriched location data. Sub-microsecond lookups for timezone, currency, region, postal code, and 14 other fields.</p>
+                    <p class="hero-description">Fast offline reverse geocoding with enriched location data. ~10 µs lookups for city, postal code, timezone, country facts and 30+ other fields.</p>
                     
                     <div class="hero-demo">
                         <div class="demo-input">
@@ -62,12 +62,12 @@
                         <a href="#install" class="btn-primary">get started</a>
                         <div class="hero-stats">
                             <div class="stat-item">
-                                <span class="stat-value">&lt;1µs</span>
+                                <span class="stat-value">~10µs</span>
                                 <span class="stat-label">lookup</span>
                             </div>
                             <div class="stat-divider"></div>
                             <div class="stat-item">
-                                <span class="stat-value">18</span>
+                                <span class="stat-value">38</span>
                                 <span class="stat-label">fields</span>
                             </div>
                             <div class="stat-divider"></div>
@@ -92,12 +92,12 @@
                     <div class="feature-card">
                         <div class="feature-icon">⚡</div>
                         <h3>blazing fast</h3>
-                        <p>Two-level spatial grid + zero-copy parse of an embedded ~37 MB binary blob. Varint+zigzag deltas and string interning keep the footprint small.</p>
+                        <p>Exact nearest-neighbour ring search over a spatial grid, read straight from an embedded binary with zero parsing at startup.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🎯</div>
                         <h3>rich data</h3>
-                        <p>18 fields per location including timezone, currency, postal code, region, continent, EU membership, and DST status. Everything you need in one call.</p>
+                        <p>38 fields per location: city, population, elevation, postal code, district, timezone, DST, currency, languages, neighbours and more. Everything in one call.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🔧</div>
@@ -159,7 +159,7 @@
                             <pre><code><span class="c-keyword">use</span> genom;
 
 <span class="c-keyword">let</span> place <span class="c-op">=</span> genom<span class="c-op">::</span><span class="c-fn">lookup</span>(<span class="c-num">40.7128</span>, <span class="c-num">-74.0060</span>)<span class="c-op">?</span>;
-<span class="c-fn">println!</span>(<span class="c-string">"{}"</span>, place.timezone);</code></pre>
+<span class="c-fn">println!</span>(<span class="c-string">"{}"</span>, place.timezone.name);</code></pre>
                         </div>
                     </div>
                 </div>
@@ -170,45 +170,65 @@
             <div class="container">
                 <div class="section-header">
                     <h2>complete location data</h2>
-                    <p>every field you need, returned in microseconds</p>
+                    <p>every field you need, in one call</p>
                 </div>
                 
                 <div class="data-showcase">
                     <div class="data-category">
-                        <h4>location</h4>
+                        <h4>place</h4>
                         <div class="data-tags">
                             <span>city</span>
+                            <span>city_ascii</span>
+                            <span>geoname_id</span>
+                            <span>feature_code</span>
+                            <span>population</span>
+                            <span>elevation</span>
+                            <span>latitude</span>
+                            <span>longitude</span>
+                            <span>distance_km</span>
+                        </div>
+                    </div>
+                    <div class="data-category">
+                        <h4>address</h4>
+                        <div class="data-tags">
                             <span>region</span>
                             <span>region_code</span>
                             <span>district</span>
+                            <span>district_code</span>
                             <span>postal_code</span>
+                            <span>locality</span>
+                            <span>municipality</span>
                         </div>
                     </div>
                     <div class="data-category">
-                        <h4>geography</h4>
+                        <h4>timezone</h4>
                         <div class="data-tags">
-                            <span>country_code</span>
-                            <span>country_name</span>
-                            <span>continent_code</span>
-                            <span>continent_name</span>
-                            <span>is_eu</span>
-                        </div>
-                    </div>
-                    <div class="data-category">
-                        <h4>time & currency</h4>
-                        <div class="data-tags">
-                            <span>timezone</span>
-                            <span>timezone_abbr</span>
+                            <span>name</span>
+                            <span>abbreviation</span>
                             <span>utc_offset</span>
+                            <span>utc_offset_str</span>
                             <span>dst_active</span>
-                            <span>currency</span>
                         </div>
                     </div>
                     <div class="data-category">
-                        <h4>coordinates</h4>
+                        <h4>country</h4>
                         <div class="data-tags">
-                            <span>latitude</span>
-                            <span>longitude</span>
+                            <span>code</span>
+                            <span>iso3</span>
+                            <span>iso_numeric</span>
+                            <span>name</span>
+                            <span>capital</span>
+                            <span>area_km2</span>
+                            <span>population</span>
+                            <span>continent</span>
+                            <span>tld</span>
+                            <span>currency</span>
+                            <span>currency_name</span>
+                            <span>phone_prefix</span>
+                            <span>postal_code_format</span>
+                            <span>languages</span>
+                            <span>neighbours</span>
+                            <span>is_eu</span>
                         </div>
                     </div>
                 </div>
@@ -241,261 +261,153 @@
 
     <script>
         const DB_URL = "geo.bin";
-
-        const COUNTRIES={AD:["Andorra","EUR"],AE:["United Arab Emirates","AED"],AF:["Afghanistan","AFN"],AG:["Antigua and Barbuda","XCD"],AI:["Anguilla","XCD"],AL:["Albania","ALL"],AM:["Armenia","AMD"],AN:["Netherlands Antilles","ANG"],AO:["Angola","AOA"],AQ:["Antarctica","USD"],AR:["Argentina","ARS"],AS:["American Samoa","USD"],AT:["Austria","EUR"],AU:["Australia","AUD"],AW:["Aruba","AWG"],AZ:["Azerbaijan","AZN"],BA:["Bosnia and Herzegovina","BAM"],BB:["Barbados","BBD"],BD:["Bangladesh","BDT"],BE:["Belgium","EUR"],BF:["Burkina Faso","XOF"],BG:["Bulgaria","BGN"],BH:["Bahrain","BHD"],BI:["Burundi","BIF"],BJ:["Benin","XOF"],BM:["Bermuda","BMD"],BN:["Brunei","BND"],BO:["Bolivia","BOB"],BR:["Brazil","BRL"],BS:["Bahamas","BSD"],BT:["Bhutan","BTN"],BV:["Bouvet Island","NOK"],BW:["Botswana","BWP"],BY:["Belarus","BYR"],BZ:["Belize","BZD"],CA:["Canada","CAD"],CC:["Cocos (Keeling) Islands","AUD"],CD:["Democratic Republic of the Congo","CDF"],CF:["Central African Republic","XAF"],CG:["Republic of the Congo","XAF"],CH:["Switzerland","CHF"],CI:["Ivory Coast","XOF"],CK:["Cook Islands","NZD"],CL:["Chile","CLP"],CM:["Cameroon","XAF"],CN:["China","CNY"],CO:["Colombia","COP"],CR:["Costa Rica","CRC"],CS:["Serbia and Montenegro","RSD"],CU:["Cuba","CUP"],CV:["Cape Verde","CVE"],CX:["Christmas Island","AUD"],CY:["Cyprus","EUR"],CZ:["Czech Republic","CZK"],DE:["Germany","EUR"],DJ:["Djibouti","DJF"],DK:["Denmark","DKK"],DM:["Dominica","XCD"],DO:["Dominican Republic","DOP"],DZ:["Algeria","DZD"],EC:["Ecuador","USD"],EE:["Estonia","EUR"],EG:["Egypt","EGP"],EH:["Western Sahara","MAD"],ER:["Eritrea","ERN"],ES:["Spain","EUR"],ET:["Ethiopia","ETB"],FI:["Finland","EUR"],FJ:["Fiji","FJD"],FK:["Falkland Islands","FKP"],FM:["Micronesia","USD"],FO:["Faroe Islands","DKK"],FR:["France","EUR"],GA:["Gabon","XAF"],GB:["United Kingdom","GBP"],GD:["Grenada","XCD"],GE:["Georgia","GEL"],GF:["French Guiana","EUR"],GH:["Ghana","GHS"],GI:["Gibraltar","GIP"],GL:["Greenland","DKK"],GM:["Gambia","GMD"],GN:["Guinea","GNF"],GP:["Guadeloupe","EUR"],GQ:["Equatorial Guinea","XAF"],GR:["Greece","EUR"],GS:["South Georgia and the South Sandwich Islands","GBP"],GT:["Guatemala","GTQ"],GU:["Guam","USD"],GW:["Guinea-Bissau","XOF"],GY:["Guyana","GYD"],HK:["Hong Kong","HKD"],HM:["Heard Island and McDonald Islands","AUD"],HN:["Honduras","HNL"],HR:["Croatia","HRK"],HT:["Haiti","HTG"],HU:["Hungary","HUF"],ID:["Indonesia","IDR"],IE:["Ireland","EUR"],IL:["Israel","ILS"],IN:["India","INR"],IO:["British Indian Ocean Territory","USD"],IQ:["Iraq","IQD"],IR:["Iran","IRR"],IS:["Iceland","ISK"],IT:["Italy","EUR"],JM:["Jamaica","JMD"],JO:["Jordan","JOD"],JP:["Japan","JPY"],KE:["Kenya","KES"],KG:["Kyrgyzstan","KGS"],KH:["Cambodia","KHR"],KI:["Kiribati","AUD"],KM:["Comoros","KMF"],KN:["Saint Kitts and Nevis","XCD"],KP:["North Korea","KPW"],KR:["South Korea","KRW"],KW:["Kuwait","KWD"],KY:["Cayman Islands","KYD"],KZ:["Kazakhstan","KZT"],LA:["Laos","LAK"],LB:["Lebanon","LBP"],LC:["Saint Lucia","XCD"],LI:["Liechtenstein","CHF"],LK:["Sri Lanka","LKR"],LR:["Liberia","LRD"],LS:["Lesotho","LSL"],LT:["Lithuania","EUR"],LU:["Luxembourg","EUR"],LV:["Latvia","EUR"],LY:["Libya","LYD"],MA:["Morocco","MAD"],MC:["Monaco","EUR"],MD:["Moldova","MDL"],ME:["Montenegro",""],MG:["Madagascar","MGA"],MH:["Marshall Islands","USD"],MK:["Macedonia","MKD"],ML:["Mali","XOF"],MM:["Myanmar","MMK"],MN:["Mongolia","MNT"],MO:["Macau","MOP"],MP:["Northern Mariana Islands","USD"],MQ:["Martinique","EUR"],MR:["Mauritania","MRU"],MS:["Montserrat","XCD"],MT:["Malta","EUR"],MU:["Mauritius","MUR"],MV:["Maldives","MVR"],MW:["Malawi","MWK"],MX:["Mexico","MXN"],MY:["Malaysia","MYR"],MZ:["Mozambique","MZN"],NA:["Namibia","NAD"],NC:["New Caledonia","XPF"],NE:["Niger","XOF"],NF:["Norfolk Island","AUD"],NG:["Nigeria","NGN"],NI:["Nicaragua","NIO"],NL:["Netherlands","EUR"],NO:["Norway","NOK"],NP:["Nepal","NPR"],NR:["Nauru","AUD"],NU:["Niue","NZD"],NZ:["New Zealand","NZD"],OM:["Oman","OMR"],PA:["Panama","PAB"],PE:["Peru","PEN"],PF:["French Polynesia","XPF"],PG:["Papua New Guinea","PGK"],PH:["Philippines","PHP"],PK:["Pakistan","PKR"],PL:["Poland","PLN"],PM:["Saint Pierre and Miquelon","EUR"],PN:["Pitcairn","NZD"],PR:["Puerto Rico","USD"],PS:["Palestinian Territory","ILS"],PT:["Portugal","EUR"],PW:["Palau","USD"],PY:["Paraguay","PYG"],QA:["Qatar","QAR"],RE:["Reunion","EUR"],RO:["Romania","RON"],RS:["Serbia",""],RU:["Russia","RUB"],RW:["Rwanda","RWF"],SA:["Saudi Arabia","SAR"],SB:["Solomon Islands","SBD"],SC:["Seychelles","SCR"],SD:["Sudan","SDG"],SE:["Sweden","SEK"],SG:["Singapore","SGD"],SH:["Saint Helena","SHP"],SI:["Slovenia","EUR"],SJ:["Svalbard and Jan Mayen","NOK"],SK:["Slovakia","EUR"],SL:["Sierra Leone","SLL"],SM:["San Marino","EUR"],SN:["Senegal","XOF"],SO:["Somalia","SOS"],SR:["Suriname","SRD"],ST:["São Tomé and Príncipe","STN"],SV:["El Salvador","SVC"],SY:["Syria","SYP"],SZ:["Swaziland","SZL"],TC:["Turks and Caicos Islands","USD"],TD:["Chad","XAF"],TF:["French Southern Territories","EUR"],TG:["Togo","XOF"],TH:["Thailand","THB"],TJ:["Tajikistan","TJS"],TK:["Tokelau","NZD"],TL:["East Timor","USD"],TM:["Turkmenistan","TMT"],TN:["Tunisia","TND"],TO:["Tonga","TOP"],TR:["Turkey","TRY"],TT:["Trinidad and Tobago","TTD"],TV:["Tuvalu","AUD"],TW:["Taiwan","TWD"],TZ:["Tanzania","TZS"],UA:["Ukraine","UAH"],UG:["Uganda","UGX"],UM:["United States Minor Outlying Islands","USD"],US:["United States","USD"],UY:["Uruguay","UYU"],UZ:["Uzbekistan","UZS"],VA:["Vatican City","EUR"],VC:["Saint Vincent and the Grenadines","XCD"],VE:["Venezuela","VES"],VG:["British Virgin Islands","USD"],VI:["U.S. Virgin Islands","USD"],VN:["Vietnam","VND"],VU:["Vanuatu","VUV"],WF:["Wallis and Futuna","XPF"],WS:["Samoa","WST"],YE:["Yemen","YER"],YT:["Mayotte","EUR"],ZA:["South Africa","ZAR"],ZM:["Zambia","ZMW"],ZW:["Zimbabwe","ZWL"]};
+        const CITY_MAX_DEGREES = 10;
 
         const inputEl = document.getElementById("coords-input");
         const outputEl = document.getElementById("demo-output");
         const COORD = /^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/;
-        const dec = new TextDecoder();
-        const fold = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+        const decoder = new TextDecoder();
+        const fold = (text) =>
+            text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-        let bytes, dv, P = 0, ready = false;
-        let strCount, strOffOff, strBodyOff, ccOff;
-        let gridCells, gridOffs, citiesStart, citiesEnd, pdir;
+        let bytes, view, header, cities, ready = false;
         let forwardIndex = null;
-        const postalCache = new Map();
 
-        function setResult(a, b) {
+        function setResult(title, detail) {
             outputEl.innerHTML = "";
-            const d1 = document.createElement("div");
-            const d2 = document.createElement("div");
-            d1.textContent = a;
-            d2.textContent = b;
-            outputEl.append(d1, d2);
+            const titleEl = document.createElement("div");
+            const detailEl = document.createElement("div");
+            titleEl.textContent = title;
+            detailEl.textContent = detail;
+            outputEl.append(titleEl, detailEl);
         }
 
-        function u32(o) {
-            return dv.getUint32(o, true);
+        const word = (position) => view.getUint32(position, true);
+        const unzigzag = (value) => (value % 2 ? -(value + 1) / 2 : value / 2);
+
+        function text(index) {
+            if (index >= header[1]) return "";
+            const offsets = header[2] + 4 * index;
+            const body = header[3];
+            return decoder.decode(bytes.subarray(body + word(offsets), body + word(offsets + 4)));
         }
 
-        function rv() {
-            let v = 0, m = 1, b;
-            do {
-                b = bytes[P++];
-                v += (b & 0x7f) * m;
-                m *= 128;
-            } while (b & 0x80);
-            return v;
+        function countryText(country, column) {
+            return text(word(header[6] + 4 * (country * header[5] + column)));
         }
 
-        function zz(v) {
-            return v % 2 ? -(v + 1) / 2 : v / 2;
+        function layer(start) {
+            const [count, directory, body, cellsPerDegree, fields] = header.slice(start, start + 5);
+            return { count, directory, body, cellsPerDegree, fields };
         }
 
-        function decodeStr(a, b) {
-            return dec.decode(bytes.subarray(a, b));
-        }
-
-        function strAt(i) {
-            if (i + 1 > strCount) return "";
-            const s = u32(strOffOff + 4 * i);
-            const e = u32(strOffOff + 4 * (i + 1));
-            return decodeStr(strBodyOff + s, strBodyOff + e);
-        }
-
-        function ccIso(i) {
-            const p = ccOff + i * 2;
-            return String.fromCharCode(bytes[p], bytes[p + 1]);
-        }
-
-        function decodeCellDir(off) {
-            const n = u32(off);
-            const cells = new Uint32Array(n);
-            const offs = new Uint32Array(n);
-            P = off + 4;
-            let c = 0, o = 0;
-            for (let i = 0; i < n; i++) {
-                c += rv();
-                o += rv();
-                cells[i] = c;
-                offs[i] = o;
-            }
-            return { cells, offs };
-        }
-
-        function bsearch(cells, offs, key) {
-            let lo = 0, hi = cells.length - 1;
-            while (lo <= hi) {
-                const mid = (lo + hi) >> 1;
-                const v = cells[mid];
-                if (v === key) return offs[mid];
-                if (v < key) lo = mid + 1;
-                else hi = mid - 1;
+        function cellPosition(grid, row, column) {
+            if (row < 0 || row >= 180 * grid.cellsPerDegree) return -1;
+            const columns = 360 * grid.cellsPerDegree;
+            const cell = row * columns + (((column % columns) + columns) % columns);
+            let low = 0, high = grid.count;
+            while (low < high) {
+                const middle = (low + high) >> 1;
+                const key = word(grid.directory + 8 * middle);
+                if (key === cell) return grid.body + word(grid.directory + 8 * middle + 4);
+                if (key < cell) low = middle + 1;
+                else high = middle;
             }
             return -1;
         }
 
-        function cellOf(lat, lon, scale, maxLa, maxLo) {
-            let la = Math.min(Math.max(Math.floor((lat + 90) * scale), 0), maxLa - 1);
-            let lo = Math.min(Math.max(Math.floor((lon + 180) * scale), 0), maxLo - 1);
-            return la * maxLo + lo;
-        }
-
-        function parse(buf) {
-            bytes = buf;
-            dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-            const offStr = u32(8), offCc = u32(16), offGrid = u32(24);
-            const offCities = u32(32), lenCities = u32(36);
-            const offPdir = u32(40), offPostal = u32(48);
-            strCount = u32(offStr);
-            strOffOff = offStr + 4;
-            strBodyOff = strOffOff + 4 * (strCount + 1);
-            ccOff = offCc + 4;
-            const grid = decodeCellDir(offGrid);
-            gridCells = grid.cells;
-            gridOffs = grid.offs;
-            citiesStart = offCities;
-            citiesEnd = offCities + lenCities;
-            const count = u32(offPdir);
-            pdir = new Map();
-            let p = offPdir + 4;
-            for (let i = 0; i < count; i++) {
-                const cc = dv.getUint16(p, true);
-                pdir.set(cc, [offPostal + u32(p + 4), offPostal + u32(p + 8)]);
-                p += 12;
+        function* records(grid, position) {
+            const varint = () => {
+                let value = 0, multiplier = 1, byte;
+                do {
+                    byte = bytes[position++];
+                    value += (byte & 0x7f) * multiplier;
+                    multiplier *= 128;
+                } while (byte & 0x80);
+                return value;
+            };
+            const count = varint();
+            let latitude = 0, longitude = 0;
+            for (let index = 0; index < count; index++) {
+                latitude += unzigzag(varint());
+                longitude += unzigzag(varint());
+                const fields = Array.from({ length: grid.fields }, varint);
+                yield { latitude: latitude / 1e6, longitude: longitude / 1e6, fields };
             }
         }
 
-        function scanCity(off, latq, lonq, best) {
-            P = citiesStart + off;
-            const n = rv();
-            let lat = 0, lon = 0;
-            for (let i = 0; i < n; i++) {
-                lat += zz(rv());
-                lon += zz(rv());
-                const nameI = rv(), a1 = rv(), a2 = rv(), a1c = rv(), tz = rv(), cc = rv();
-                const dx = lat - latq, dy = lon - lonq, d2 = dx * dx + dy * dy;
-                if (d2 < best.d2) {
-                    best.d2 = d2;
-                    best.hit = { lat, lon, nameI, a1c, tz, cc };
-                }
+        function ring(radius) {
+            if (radius === 0) return [[0, 0]];
+            const steps = [];
+            for (let step = -radius; step <= radius; step++) {
+                steps.push([-radius, step], [radius, step]);
             }
+            for (let step = 1 - radius; step < radius; step++) {
+                steps.push([step, -radius], [step, radius]);
+            }
+            return steps;
         }
 
-        function nearestCity(lat, lon) {
-            if (citiesEnd <= citiesStart) return null;
-            const latq = Math.trunc(lat * 1e6), lonq = Math.trunc(lon * 1e6);
-            const cell = cellOf(lat, lon, 10, 1800, 3600);
-            const baseLa = Math.floor(cell / 3600), baseLo = cell % 3600;
-            const best = { d2: Infinity, hit: null };
-            let r = 1;
-            for (;;) {
-                for (let dla = -r; dla <= r; dla++) {
-                    for (let dlo = -r; dlo <= r; dlo++) {
-                        const la = baseLa + dla, lo = baseLo + dlo;
-                        if (la < 0 || la >= 1800 || lo < 0 || lo >= 3600) continue;
-                        const off = bsearch(gridCells, gridOffs, la * 3600 + lo);
-                        if (off >= 0) scanCity(off, latq, lonq, best);
+        const wrapDegrees = (degrees) => ((degrees + 540) % 360) - 180;
+        const edge = (position) => Math.min(position % 1, 1 - (position % 1));
+
+        function nearest(grid, latitude, longitude, maxDegrees) {
+            const rowPosition = (latitude + 90) * grid.cellsPerDegree;
+            const columnPosition = (longitude + 180) * grid.cellsPerDegree;
+            const row = Math.floor(rowPosition), column = Math.floor(columnPosition);
+            const longitudeScale = Math.cos((latitude * Math.PI) / 180);
+            const rowLimit = Math.ceil(maxDegrees * grid.cellsPerDegree);
+            const maxRadius = Math.floor(rowLimit / Math.max(longitudeScale, 0.2));
+            let best = null, closest = maxDegrees ** 2;
+            for (let radius = 0; radius <= maxRadius; radius++) {
+                const rowReach = radius - 1 + edge(rowPosition);
+                const columnReach = (radius - 1 + edge(columnPosition)) * longitudeScale;
+                const reach = Math.min(rowReach, columnReach) / grid.cellsPerDegree;
+                if (radius > 0 && reach * reach > closest) break;
+                for (const [rowStep, columnStep] of ring(radius)) {
+                    if (Math.abs(rowStep) > rowLimit) continue;
+                    const position = cellPosition(grid, row + rowStep, column + columnStep);
+                    if (position < 0) continue;
+                    for (const record of records(grid, position)) {
+                        const latitudeDelta = record.latitude - latitude;
+                        const longitudeDelta =
+                            wrapDegrees(record.longitude - longitude) * longitudeScale;
+                        const distance = latitudeDelta ** 2 + longitudeDelta ** 2;
+                        if (distance < closest) [closest, best] = [distance, record];
                     }
                 }
-                if (best.hit || r > 200) break;
-                r = Math.max(r * 2, r + 1);
             }
-            return best.hit;
+            return best;
         }
 
-        function parsePostalCountry(start) {
-            let i = start;
-            const tupleCount = u32(i);
-            i += 4 + tupleCount * 12;
-            const psCount = u32(i);
-            i += 4;
-            const psOffOff = i;
-            i += 4 * (psCount + 1);
-            const psBodyOff = i + 0;
-            i += u32(psOffOff + 4 * psCount);
-            P = i;
-            const cellCount = rv();
-            const cells = new Uint32Array(cellCount);
-            const offs = new Uint32Array(cellCount);
-            let c = 0, o = 0;
-            for (let k = 0; k < cellCount; k++) {
-                c += rv();
-                o += rv();
-                cells[k] = c;
-                offs[k] = o;
-            }
-            return { psOffOff, psBodyOff, cells, offs, bodyOff: P };
+        function parse(buffer) {
+            bytes = buffer;
+            view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+            if (decoder.decode(bytes.subarray(0, 4)) !== "GEO2") throw new Error("format");
+            header = Array.from({ length: 17 }, (_, index) => word(4 * index));
+            cities = layer(7);
         }
 
-        function getPostal(cc) {
-            if (postalCache.has(cc)) return postalCache.get(cc);
-            const range = pdir.get(cc);
-            const parsed = range ? parsePostalCountry(range[0]) : null;
-            postalCache.set(cc, parsed);
-            return parsed;
-        }
-
-        function scanPostalCell(pos, latq, lonq, best) {
-            P = pos;
-            const n = rv();
-            let lat = 0, lon = 0;
-            for (let i = 0; i < n; i++) {
-                lat += zz(rv());
-                lon += zz(rv());
-                const ps = rv();
-                rv();
-                const dx = lat - latq, dy = lon - lonq, d2 = dx * dx + dy * dy;
-                if (d2 < best.d2) {
-                    best.d2 = d2;
-                    best.ps = ps;
-                }
-            }
-        }
-
-        function nearestPostal(cc, lat, lon) {
-            const country = getPostal(cc);
-            if (!country) return "";
-            const latq = Math.trunc(lat * 1e6), lonq = Math.trunc(lon * 1e6);
-            const cell = cellOf(lat, lon, 100, 18000, 36000);
-            const baseLa = Math.floor(cell / 36000), baseLo = cell % 36000;
-            const best = { d2: Infinity, ps: -1 };
-            let r = 1;
-            for (;;) {
-                for (let dla = -r; dla <= r; dla++) {
-                    for (let dlo = -r; dlo <= r; dlo++) {
-                        const la = baseLa + dla, lo = baseLo + dlo;
-                        if (la < 0 || la >= 18000 || lo < 0 || lo >= 36000) continue;
-                        const off = bsearch(country.cells, country.offs, la * 36000 + lo);
-                        if (off >= 0) scanPostalCell(country.bodyOff + off, latq, lonq, best);
-                    }
-                }
-                if (best.ps >= 0 || r > 1000) break;
-                r = Math.max(r * 2, r + 1);
-            }
-            if (best.ps < 0) return "";
-            const s = u32(country.psOffOff + 4 * best.ps);
-            const e = u32(country.psOffOff + 4 * (best.ps + 1));
-            return decodeStr(country.psBodyOff + s, country.psBodyOff + e);
-        }
-
-        function place(hit) {
-            const cc = ccIso(hit.cc);
-            const info = COUNTRIES[cc];
+        function place(record) {
+            const [name, , region, , , , timezone, country] = record.fields;
             return {
-                city: strAt(hit.nameI),
-                country: info ? info[0] : cc || "Unknown",
-                currency: info ? info[1] : "",
-                region: strAt(hit.a1c),
-                timezone: strAt(hit.tz),
-                lat: hit.lat / 1e6,
-                lon: hit.lon / 1e6,
+                city: text(name),
+                country: countryText(country, 3) || "Unknown",
+                currency: countryText(country, 10),
+                region: text(region),
+                timezone: text(timezone),
+                lat: record.latitude,
+                lon: record.longitude,
             };
         }
 
         function buildForward() {
             const names = [], hits = [];
-            P = citiesStart;
-            while (P < citiesEnd) {
-                const n = rv();
-                let lat = 0, lon = 0;
-                for (let i = 0; i < n; i++) {
-                    lat += zz(rv());
-                    lon += zz(rv());
-                    const nameI = rv(), a1 = rv(), a2 = rv(), a1c = rv(), tz = rv(), cc = rv();
-                    names.push(fold(strAt(nameI)));
-                    hits.push({ lat, lon, nameI, a1c, tz, cc });
+            for (let index = 0; index < cities.count; index++) {
+                const position = cities.body + word(cities.directory + 8 * index + 4);
+                for (const record of records(cities, position)) {
+                    names.push(fold(text(record.fields[0])));
+                    hits.push(record);
                 }
             }
             forwardIndex = { names, hits };
@@ -503,18 +415,17 @@
 
         function forward(query) {
             if (!forwardIndex) buildForward();
-            const s = fold(query.trim());
-            if (!s) return null;
-            const { names } = forwardIndex;
-            let starts = -1, includes = -1;
-            for (let i = 0; i < names.length; i++) {
-                const nm = names[i];
-                if (nm === s) return place(forwardIndex.hits[i]);
-                if (starts < 0 && nm.startsWith(s)) starts = i;
-                else if (includes < 0 && nm.includes(s)) includes = i;
+            const search = fold(query.trim());
+            if (!search) return null;
+            const { names, hits } = forwardIndex;
+            let best = null, bestRank = 0;
+            for (let index = 0; index < names.length; index++) {
+                const name = names[index];
+                const match = name === search ? 3 : name.startsWith(search) ? 2 : +name.includes(search);
+                const rank = match && match * 1e10 + hits[index].fields[9];
+                if (rank > bestRank) [best, bestRank] = [hits[index], rank];
             }
-            const i = starts >= 0 ? starts : includes;
-            return i >= 0 ? place(forwardIndex.hits[i]) : null;
+            return best && place(best);
         }
 
         function coordLine(p) {
@@ -537,7 +448,7 @@
             if (m) {
                 const lat = +m[1], lon = +m[2];
                 if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-                    const hit = nearestCity(lat, lon);
+                    const hit = nearest(cities, lat, lon, CITY_MAX_DEGREES);
                     if (hit) {
                         const p = place(hit);
                         setResult(`${p.city}, ${p.country}`, detailLine(p));

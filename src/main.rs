@@ -1,103 +1,59 @@
-use std::path::{Path, PathBuf};
+#[path = "builder.rs"]
+mod builder;
+
+use std::env;
+use std::path::Path;
 use std::process::ExitCode;
 
-const DEFAULT_DB: &str = "geo.bin";
+use genom::Geocoder;
+
+const USAGE: &str = "Usage:
+  genom <latitude> <longitude> [geo.bin]   reverse-geocode
+  genom build [geo.bin]                    build the database";
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().collect();
-    let cmd = args.get(1).map(String::as_str).unwrap_or("");
-    match cmd {
-        "build" => run_build(args.get(2).map(Path::new).unwrap_or(Path::new(DEFAULT_DB))),
-        "check" => run_check(args.get(2).map(Path::new).unwrap_or(Path::new(DEFAULT_DB))),
-        "" | "-h" | "--help" => {
-            usage(&args[0]);
-            ExitCode::SUCCESS
-        }
-        _ => run_lookup(&args),
-    }
-}
-
-fn usage(bin: &str) {
-    eprintln!(
-        "Usage:\n  {bin} <lat> <lon>       reverse-geocode\n  \
-         {bin} build [path]       build geo.bin (default: ./{DEFAULT_DB})\n  \
-         {bin} check [path]       exit 0 if geo.bin exists, 1 otherwise"
-    );
-}
-
-fn run_build(out: &Path) -> ExitCode {
-    if genom::loader::exists(out) {
-        println!("exists → {}", out.display());
-        return ExitCode::SUCCESS;
-    }
-    let cache = cache_dir(out);
-    if let Err(e) = std::fs::create_dir_all(&cache) {
-        eprintln!("cache: {e}");
-        return ExitCode::FAILURE;
-    }
-    match genom::builder::build(&cache, out) {
-        Ok(()) => {
-            println!("built → {}", out.display());
-            ExitCode::SUCCESS
-        }
-        Err(e) => {
-            eprintln!("build failed: {e}");
+    let arguments: Vec<String> = env::args().skip(1).collect();
+    let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
+    let result = match arguments.as_slice() {
+        ["build"] => build("geo.bin"),
+        ["build", output] => build(output),
+        [latitude, longitude] => lookup(latitude, longitude, None),
+        [latitude, longitude, database] => lookup(latitude, longitude, Some(database)),
+        _ => Err(USAGE.to_string()),
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("{message}");
             ExitCode::FAILURE
         }
     }
 }
 
-fn run_check(path: &Path) -> ExitCode {
-    if genom::loader::exists(path) {
-        println!("ok");
-        ExitCode::SUCCESS
-    } else {
-        println!("missing");
-        ExitCode::FAILURE
-    }
+fn build(output: &str) -> Result<(), String> {
+    let output = Path::new(output);
+    let sources = match Path::new("data").exists() {
+        true => Path::new("data").to_path_buf(),
+        false => output.with_file_name("genom-sources"),
+    };
+    builder::build(&sources, output).map_err(|error| format!("build failed: {error}"))?;
+    println!("built {}", output.display());
+    Ok(())
 }
 
-fn cache_dir(out: &Path) -> PathBuf {
-    let repo = PathBuf::from("data");
-    if repo.exists() {
-        return repo;
+fn lookup(latitude: &str, longitude: &str, database: Option<&str>) -> Result<(), String> {
+    let (Ok(latitude), Ok(longitude)) = (latitude.parse(), longitude.parse()) else {
+        return Err(USAGE.to_string());
+    };
+    let place = match database {
+        Some(path) => Geocoder::open(path)
+            .map_err(|error| format!("{path}: {error}"))?
+            .lookup(latitude, longitude),
+        None => genom::lookup(latitude, longitude),
+    };
+    match place {
+        Some(place) => println!("{place:#?}"),
+        None => println!("no place found"),
     }
-    out.parent()
-        .unwrap_or(Path::new("."))
-        .join("genom-cache")
-}
-
-fn run_lookup(args: &[String]) -> ExitCode {
-    let Some(lat) = args.get(1).and_then(|s| s.parse::<f64>().ok()) else {
-        usage(&args[0]);
-        return ExitCode::FAILURE;
-    };
-    let Some(lon) = args.get(2).and_then(|s| s.parse::<f64>().ok()) else {
-        usage(&args[0]);
-        return ExitCode::FAILURE;
-    };
-    let Some(place) = genom::lookup(lat, lon) else {
-        println!("No place found");
-        return ExitCode::SUCCESS;
-    };
-    println!("{}", place.city);
-    println!("  Region: {}", place.region);
-    println!("  Region Code: {}", place.region_code);
-    println!("  District: {}", place.district);
-    println!("  Country: {} ({})", place.country_name, place.country_code);
-    println!(
-        "  Continent: {} ({})",
-        place.continent_name, place.continent_code
-    );
-    println!("  Postal Code: {}", place.postal_code);
-    println!(
-        "  Timezone: {} ({}) {}",
-        place.timezone, place.timezone_abbr, place.utc_offset_str
-    );
-    println!("  UTC Offset: {} seconds", place.utc_offset);
-    println!("  DST Active: {}", place.dst_active);
-    println!("  Currency: {}", place.currency);
-    println!("  EU Member: {}", place.is_eu);
-    println!("  Coords: {}, {}", place.latitude, place.longitude);
-    ExitCode::SUCCESS
+    Ok(())
 }

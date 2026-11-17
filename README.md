@@ -4,136 +4,112 @@
 [![Docs.rs](https://docs.rs/genom/badge.svg)](https://docs.rs/genom)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Fast offline reverse geocoding with enriched location data.
+Fast offline reverse geocoding. Coordinates in, nearest city out, with its region,
+district, postal code, timezone and a full set of country facts.
 
 ```
-~37 MB embedded DB
-sub-µs lookup
-18 fields per result
+38 fields per lookup
+~10 µs per lookup on land
+0 ms startup, nothing to parse
 ```
+
+Try it in the browser: [genom.tn3w.dev](https://genom.tn3w.dev)
 
 ## Install
 
 ```toml
 [dependencies]
-genom = "2"
+genom = "3"
 ```
 
 ## Use
 
 ```rust
-use genom::lookup;
+let place = genom::lookup(48.8566, 2.3522).unwrap();
 
-let place = lookup(40.7128, -74.0060).unwrap();
-println!("{}, {}", place.city, place.country_name); // New York City, United States
-println!("{} ({})", place.timezone, place.timezone_abbr); // America/New_York (EDT)
-println!("{} {}", place.currency, place.postal_code); // USD 10007
+println!("{} {}, {}", place.postal_code, place.city, place.country.name);
+// 75004 Paris 04 Hôtel-de-Ville, France
+println!("{} ({})", place.timezone.name, place.timezone.abbreviation);
+// Europe/Paris (CET)
+println!("{} {}", place.country.currency, place.country.languages[0]);
+// EUR fr-FR
 ```
 
-Returns `Option<Place>` with 18 fields: `city`, `region`, `region_code`,
-`district`, `country_code`, `country_name`, `postal_code`, `timezone`,
-`timezone_abbr`, `utc_offset`, `utc_offset_str`, `latitude`, `longitude`,
-`currency`, `continent_code`, `continent_name`, `is_eu`, `dst_active`.
+`lookup` returns `None` when no city is within about 1,100 km (open ocean).
 
-## How
+### Fields
 
-1. **Compile-time build** (`build.rs`): downloads GeoNames `cities500`,
-   `admin1/2`, `countryInfo`, `allCountries.zip` (postal), and Natural Earth
-   country polygons. Outputs a single compact binary `geo.bin` (~37 MB) into
-   `OUT_DIR`.
-2. **Embedded**: `geo.bin` is `include_bytes!`'d into the final binary.
-3. **Lazy parse**: on first lookup, `Geocoder::global()` parses headers into
-   zero-copy `&'static` slices + two `FxHashMap` indexes (grid → city
-   offset, country → postal section).
-4. **Lookup**: expanding ring search on a 0.1° city grid → nearest city.
-   Refines postal code from a 0.01° per-country grid. Enriches with
-   country/currency/continent/timezone metadata via static maps.
+| Group | Fields |
+| --- | --- |
+| City | `city`, `city_ascii`, `geoname_id`, `feature_code`, `population`, `elevation`, `latitude`, `longitude`, `distance_km` |
+| Address | `region`, `region_code`, `district`, `district_code`, `postal_code`, `locality`, `municipality` |
+| `timezone` | `name`, `abbreviation`, `utc_offset`, `utc_offset_str`, `dst_active` |
+| `country` | `code`, `iso3`, `iso_numeric`, `name`, `capital`, `area_km2`, `population`, `continent_code`, `continent_name`, `tld`, `currency`, `currency_name`, `phone_prefix`, `postal_code_format`, `languages`, `neighbours`, `is_eu` |
 
-Binary format: varint + zigzag deltas for coords, interned strings, fixed
-section headers. See `build/builder.rs`.
+### Use a database file
+
+Releases publish a fresh `geo.bin` daily. Load one at runtime instead of the
+embedded copy:
+
+```rust
+let geocoder = genom::Geocoder::open("geo.bin")?;
+let place = geocoder.lookup(40.7128, -74.0060);
+```
+
+`Geocoder::from_bytes` accepts any `Vec<u8>` or `&'static [u8]`.
 
 ## CLI
 
 ```bash
-cargo build --release
-./target/release/genom 48.8566 2.3522     # reverse-geocode
-./target/release/genom build ./geo.bin    # build the .bin standalone
-./target/release/genom check ./geo.bin    # exit 0 if present, 1 if missing
+cargo install genom
+genom 48.8566 2.3522            # embedded database
+genom 48.8566 2.3522 geo.bin    # database file
+genom build geo.bin             # build a database file
 ```
 
-`build` skips if the file already exists. Raw sources are read from `./data/`
-when present, otherwise downloaded into `<out_dir>/genom-cache/`.
+## Python
 
-## Load from disk
+[`lookup.py`](lookup.py) reads the same `geo.bin` with only the standard library:
 
-Skip the embedded blob and load a pre-built `geo.bin` at runtime:
-
-```rust
-let geo = genom::loader::load_from_file("geo.bin")?;
-let place = geo.lookup(40.7128, -74.0060);
+```bash
+python3 lookup.py 48.8566 2.3522 geo.bin
 ```
 
-One syscall, leaked to `&'static [u8]`, pages stay resident → sub-µs lookups.
-See [`src/loader.rs`](src/loader.rs).
+## How it works
 
-## `genom-golf` self-contained lookup crate
+1. **Build** (`build.rs`): reads GeoNames `cities500`, `admin1`/`admin2`,
+   `countryInfo` and all postal codes from `data/`, or downloads them, and writes
+   `geo.bin` (~70 MB) into `OUT_DIR`.
+2. **Embed**: `geo.bin` is `include_bytes!`'d into your binary.
+3. **Lookup**: rings of 0.1° grid cells are scanned outward until no unscanned
+   cell can hold a closer city. Distances scale longitude by `cos(latitude)` and
+   wrap at ±180°, so the result is the true nearest city everywhere. The postal
+   code is the nearest one of the same country within ~30 km.
 
-[`golf/`](golf/) is a standalone sibling crate. Single file
-[`golf/src/lib.rs`](golf/src/lib.rs), no `genom` dep, only `chrono` + `chrono-tz`.
-Same `Place` output, byte-identical lookup results.
-
-```rust
-let geo = genom_golf::Geo::open("geo.bin")?;
-let place = geo.lookup(40.7128, -74.0060);
-```
-
-Optimized for minimal memory + fast load/lookup:
-
-- Owns `Box<[u8]>` (no leak, no embedded blob).
-- Sorted `Box<[(u32, u32)]>` grid indexes + binary search → no `FxHashMap`,
-  ~3× smaller index than the embedded path.
-- Unaligned `u32` + varint decode on demand; only the two grid arrays cached.
-- Enrichment via sorted `&'static [(u16, CInfo)]` country table, single
-  binary search instead of multiple hashmap probes.
-
-## Build cache
-
-`build.rs` looks for raw GeoNames + Natural Earth downloads in `data/` first,
-then falls back to network fetch into `OUT_DIR/geonames-cache/`. The repo
-ships with `data/` populated so CI builds without network. `data/` is
-excluded from the published crate via `Cargo.toml`'s `exclude` end users
-installing from crates.io download fresh data on first build.
+The file is read in place: a sorted cell directory is binary-searched directly,
+records are varint/zigzag-delta encoded, and all text is interned once.
 
 ## Skip the build
 
-For docs.rs / CI without network:
+For CI or docs builds without the data:
 
 ```toml
-[dependencies]
-genom = { version = "2", features = ["no-build-database"] }
+genom = { version = "3", default-features = false, features = ["no-build-database"] }
 ```
 
-The database becomes empty; all lookups return `None`.
-
-## Performance
-
-- **First lookup**: ~5 ms (lazy parse of indexes).
-- **Steady state**: sub-microsecond city scan + postal scan.
-- **Memory**: ~37 MB embedded blob, kept as `&'static [u8]`. Indexes add a
-  few MB of hashmaps.
+Lookups then return `None`; `Geocoder::open` still works.
 
 ## Develop
 
 ```bash
-cargo build --release
 cargo test --release
-cargo doc --no-deps --open
+cargo clippy --all-targets -- -D warnings
 ```
 
 ## Data sources
 
-- [GeoNames.org](https://www.geonames.org/) cities, admin codes, postal CC-BY 4.0
-- [Natural Earth](https://www.naturalearthdata.com/) country polygons public domain
+[GeoNames](https://www.geonames.org/), CC BY 4.0: cities, admin divisions,
+countries and postal codes.
 
 ## License
 

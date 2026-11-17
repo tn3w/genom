@@ -1,31 +1,28 @@
 #[path = "src/builder.rs"]
 mod builder;
 
+use std::env;
+use std::fs;
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/builder.rs");
-    if cfg!(feature = "no-build-database") {
+    println!("cargo:rerun-if-changed=data");
+    println!("cargo:rerun-if-env-changed=DOCS_RS");
+
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let database = out.join("geo.bin");
+    let skip = env::var_os("CARGO_FEATURE_NO_BUILD_DATABASE").is_some()
+        || env::var_os("DOCS_RS").is_some();
+    if skip {
+        fs::write(&database, []).unwrap();
         return;
     }
-    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    let bin = out.join("geo.bin");
-    if std::env::var("DOCS_RS").is_ok() || std::env::var("CLIPPY_ARGS").is_ok() {
-        std::fs::write(&bin, []).ok();
-        return;
-    }
-    if bin.exists() {
-        return;
-    }
-    let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    let repo_cache = manifest.join("data");
-    let cache = if repo_cache.exists() {
-        repo_cache
+    let data = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("data");
+    let sources = if data.exists() {
+        data
     } else {
-        let fallback = out.join("geonames-cache");
-        std::fs::create_dir_all(&fallback).unwrap();
-        fallback
+        out.join("sources")
     };
-    builder::build(&cache, &bin).unwrap();
+    builder::build(&sources, &database).unwrap();
 }

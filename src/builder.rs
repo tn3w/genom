@@ -1,721 +1,356 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::Path;
 
-use rustc_hash::FxHashMap;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-const URL_CITIES: &str = "https://download.geonames.org/export/dump/cities500.zip";
-const URL_ADMIN1: &str = "https://download.geonames.org/export/dump/admin1CodesASCII.txt";
-const URL_ADMIN2: &str = "https://download.geonames.org/export/dump/admin2Codes.txt";
-const URL_COUNTRY: &str = "https://download.geonames.org/export/dump/countryInfo.txt";
-const URL_POSTAL: &str = "https://download.geonames.org/export/zip/allCountries.zip";
-const URL_NE_COUNTRIES: &str =
-    "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip";
+const DUMP_URL: &str = "https://download.geonames.org/export";
+const MAGIC: &[u8; 4] = b"GEO2";
+const HEADER_WORDS: usize = 17;
+const CITY_CELLS_PER_DEGREE: u32 = 10;
+const POSTAL_CELLS_PER_DEGREE: u32 = 10;
 
-/// Fetch sources (cached in `cache`), parse, and write `geo.bin` to `out_file`.
-pub fn build(cache: &Path, out_file: &Path) -> Result<(), Box<dyn Error>> {
-    let cities_zip = fetch(cache, URL_CITIES, "cities500.zip")?;
-    let admin1 = fetch_text(cache, URL_ADMIN1, "admin1.txt")?;
-    let admin2 = fetch_text(cache, URL_ADMIN2, "admin2.txt")?;
-    let country = fetch_text(cache, URL_COUNTRY, "countryInfo.txt")?;
-    let postal_zip = fetch(cache, URL_POSTAL, "postal.zip")?;
-    let ne_zip = fetch(cache, URL_NE_COUNTRIES, "ne_countries.zip")?;
+const EUROPEAN_UNION: [&str; 27] = [
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
+    "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+];
 
-    let cities_txt = unzip_first(&cities_zip, "cities500.txt")?;
-    let postal_files = unzip_all_txt(&postal_zip)?;
-    let (ne_shp, ne_dbf) = unzip_ne(&ne_zip)?;
-
-    let cc_table = parse_country(&country);
-    let admin1_map = parse_admin_map(&admin1);
-    let admin2_map = parse_admin_map(&admin2);
-    let cities = parse_cities(&cities_txt);
-    let postal: Vec<PostalEntry> = postal_files.iter().flat_map(|t| parse_postal(t)).collect();
-    let polys = parse_ne_polys(&ne_shp, &ne_dbf);
-
-    let bin = build_binary(BuildInput {
-        cc_table,
-        admin1_map,
-        admin2_map,
-        cities,
-        postal,
-        polys,
-    });
-    fs::write(out_file, &bin)?;
-    Ok(())
+struct Point {
+    latitude: i32,
+    longitude: i32,
+    fields: Vec<u32>,
 }
 
-fn fetch(cache: &Path, url: &str, name: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    let path = cache.join(name);
-    if path.exists() {
-        return Ok(fs::read(&path)?);
-    }
-    let mut buf = Vec::new();
-    ureq::get(url)
-        .call()?
-        .into_body()
-        .into_reader()
-        .read_to_end(&mut buf)?;
-    fs::write(&path, &buf)?;
-    Ok(buf)
-}
-
-fn fetch_text(cache: &Path, url: &str, name: &str) -> Result<String, Box<dyn Error>> {
-    Ok(String::from_utf8(fetch(cache, url, name)?)?)
-}
-
-fn unzip_first(zip_bytes: &[u8], expect: &str) -> Result<String, Box<dyn Error>> {
-    let mut archive = zip::ZipArchive::new(Cursor::new(zip_bytes))?;
-    let mut file = archive.by_name(expect)?;
-    let mut buf = String::new();
-    file.read_to_string(&mut buf)?;
-    Ok(buf)
-}
-
-fn unzip_all_txt(zip_bytes: &[u8]) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut archive = zip::ZipArchive::new(Cursor::new(zip_bytes))?;
-    let mut out = Vec::new();
-    for index in 0..archive.len() {
-        let mut file = archive.by_index(index)?;
-        let name = file.name().to_string();
-        if !name.ends_with(".txt") || name.contains("readme") {
-            continue;
-        }
-        let mut buf = String::new();
-        if file.read_to_string(&mut buf).is_ok() {
-            out.push(buf);
-        }
-    }
-    Ok(out)
-}
-
-fn unzip_ne(zip_bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Box<dyn Error>> {
-    let mut archive = zip::ZipArchive::new(Cursor::new(zip_bytes))?;
-    let mut shp = Vec::new();
-    let mut dbf = Vec::new();
-    for index in 0..archive.len() {
-        let mut file = archive.by_index(index)?;
-        let name = file.name().to_string();
-        if name.ends_with(".shp") {
-            file.read_to_end(&mut shp)?;
-        } else if name.ends_with(".dbf") {
-            file.read_to_end(&mut dbf)?;
-        }
-    }
-    Ok((shp, dbf))
-}
-
-#[derive(Default)]
-struct CountryRow {
-    iso2: String,
-}
-
-fn parse_country(text: &str) -> Vec<CountryRow> {
-    let mut rows = Vec::new();
-    for line in text.lines() {
-        if line.starts_with('#') || line.is_empty() {
-            continue;
-        }
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 2 {
-            continue;
-        }
-        rows.push(CountryRow {
-            iso2: cols[0].to_string(),
-        });
-    }
-    rows
-}
-
-fn parse_admin_map(text: &str) -> FxHashMap<String, String> {
-    let mut map = FxHashMap::default();
-    for line in text.lines() {
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() >= 2 {
-            map.insert(cols[0].to_string(), cols[1].to_string());
-        }
-    }
-    map
-}
-
-struct City {
-    lat: f64,
-    lon: f64,
-    name: String,
-    cc: String,
-    a1: String,
-    a2: String,
-    tz: String,
-}
-
-fn parse_cities(text: &str) -> Vec<City> {
-    let mut cities = Vec::new();
-    for line in text.lines() {
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 18 {
-            continue;
-        }
-        cities.push(City {
-            lat: cols[4].parse().unwrap_or(0.0),
-            lon: cols[5].parse().unwrap_or(0.0),
-            name: cols[1].to_string(),
-            cc: cols[8].to_string(),
-            a1: cols[10].to_string(),
-            a2: cols[11].to_string(),
-            tz: cols[17].to_string(),
-        });
-    }
-    cities
-}
-
-struct PostalEntry {
-    lat: f64,
-    lon: f64,
-    cc: String,
-    postal: String,
-    a1: String,
-    a2: String,
-}
-
-fn parse_postal(text: &str) -> Vec<PostalEntry> {
-    let mut entries = Vec::new();
-    for line in text.lines() {
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 12 {
-            continue;
-        }
-        let lat: f64 = cols[9].parse().unwrap_or(0.0);
-        let lon: f64 = cols[10].parse().unwrap_or(0.0);
-        if lat == 0.0 && lon == 0.0 {
-            continue;
-        }
-        entries.push(PostalEntry {
-            lat,
-            lon,
-            cc: cols[0].to_string(),
-            postal: cols[1].to_string(),
-            a1: cols[4].to_string(),
-            a2: cols[6].to_string(),
-        });
-    }
-    entries
-}
-
-struct Poly {
-    iso2: String,
-    rings: Vec<Vec<(f64, f64)>>,
-}
-
-fn parse_ne_polys(shp: &[u8], dbf: &[u8]) -> Vec<Poly> {
-    use shapefile::Shape;
-    use shapefile::dbase::FieldValue;
-    let Ok(shape_reader) = shapefile::ShapeReader::new(Cursor::new(shp)) else {
-        return Vec::new();
-    };
-    let Ok(dbase_reader) = shapefile::dbase::Reader::new(Cursor::new(dbf)) else {
-        return Vec::new();
-    };
-    let mut reader = shapefile::Reader::new(shape_reader, dbase_reader);
-    let mut out = Vec::new();
-    for record in reader.iter_shapes_and_records().flatten() {
-        let (shape, fields) = record;
-        let iso2 = match fields.get("ISO_A2_EH").or_else(|| fields.get("ISO_A2")) {
-            Some(FieldValue::Character(Some(value))) => value.clone(),
-            _ => continue,
-        };
-        if iso2.len() != 2 {
-            continue;
-        }
-        let mut rings = Vec::new();
-        if let Shape::Polygon(polygon) = shape {
-            for ring in polygon.rings() {
-                let points: Vec<(f64, f64)> = ring.points().iter().map(|p| (p.y, p.x)).collect();
-                if !points.is_empty() {
-                    rings.push(simplify(&points, 0.05));
-                }
-            }
-        }
-        if !rings.is_empty() {
-            out.push(Poly { iso2, rings });
-        }
-    }
-    out
-}
-
-fn simplify(points: &[(f64, f64)], tolerance: f64) -> Vec<(f64, f64)> {
-    if points.len() < 3 {
-        return points.to_vec();
-    }
-    let mut keep = vec![false; points.len()];
-    keep[0] = true;
-    *keep.last_mut().unwrap() = true;
-    douglas_peucker(
-        points,
-        0,
-        points.len() - 1,
-        tolerance * tolerance,
-        &mut keep,
-    );
-    points
-        .iter()
-        .zip(keep)
-        .filter_map(|(point, k)| if k { Some(*point) } else { None })
-        .collect()
-}
-
-fn douglas_peucker(
-    points: &[(f64, f64)],
-    a: usize,
-    b: usize,
-    tolerance_squared: f64,
-    keep: &mut [bool],
-) {
-    if b <= a + 1 {
-        return;
-    }
-    let (ax, ay) = points[a];
-    let (bx, by) = points[b];
-    let dx = bx - ax;
-    let dy = by - ay;
-    let len_squared = dx * dx + dy * dy;
-    let mut best = 0.0;
-    let mut idx = a;
-    for (i, &(px, py)) in points.iter().enumerate().take(b).skip(a + 1) {
-        let distance_squared = if len_squared == 0.0 {
-            let ex = px - ax;
-            let ey = py - ay;
-            ex * ex + ey * ey
-        } else {
-            let t = (((px - ax) * dx + (py - ay) * dy) / len_squared).clamp(0.0, 1.0);
-            let ex = px - (ax + t * dx);
-            let ey = py - (ay + t * dy);
-            ex * ex + ey * ey
-        };
-        if distance_squared > best {
-            best = distance_squared;
-            idx = i;
-        }
-    }
-    if best > tolerance_squared {
-        keep[idx] = true;
-        douglas_peucker(points, a, idx, tolerance_squared, keep);
-        douglas_peucker(points, idx, b, tolerance_squared, keep);
-    }
-}
-
-struct BuildInput {
-    cc_table: Vec<CountryRow>,
-    admin1_map: FxHashMap<String, String>,
-    admin2_map: FxHashMap<String, String>,
-    cities: Vec<City>,
-    postal: Vec<PostalEntry>,
-    polys: Vec<Poly>,
-}
-
-const MAGIC: &[u8; 4] = b"GEO1";
-const GRID_LON: i32 = 3600;
-const GRID_LAT: i32 = 1800;
-const GRID_SCALE: f64 = 10.0;
-const PGRID_LON: i32 = 36000;
-const PGRID_LAT: i32 = 18000;
-const PGRID_SCALE: f64 = 100.0;
-
-fn cell_of(lat: f64, lon: f64) -> usize {
-    let la = (((lat + 90.0) * GRID_SCALE).floor() as i32).clamp(0, GRID_LAT - 1);
-    let lo = (((lon + 180.0) * GRID_SCALE).floor() as i32).clamp(0, GRID_LON - 1);
-    (la * GRID_LON + lo) as usize
-}
-
-fn pcell_of(lat: f64, lon: f64) -> u32 {
-    let la = (((lat + 90.0) * PGRID_SCALE).floor() as i32).clamp(0, PGRID_LAT - 1);
-    let lo = (((lon + 180.0) * PGRID_SCALE).floor() as i32).clamp(0, PGRID_LON - 1);
-    (la * PGRID_LON + lo) as u32
+struct Country {
+    id: u32,
+    row: Vec<u32>,
+    postal_codes: u32,
 }
 
 #[derive(Default)]
 struct Strings {
-    map: FxHashMap<String, u32>,
+    ids: HashMap<String, u32>,
     list: Vec<String>,
 }
 
 impl Strings {
-    fn intern(&mut self, value: &str) -> u32 {
-        if let Some(&index) = self.map.get(value) {
-            return index;
+    fn intern(&mut self, text: &str) -> u32 {
+        if let Some(&id) = self.ids.get(text) {
+            return id;
         }
-        let index = self.list.len() as u32;
-        self.list.push(value.to_string());
-        self.map.insert(value.to_string(), index);
-        index
+        let id = self.list.len() as u32;
+        self.ids.insert(text.to_string(), id);
+        self.list.push(text.to_string());
+        id
     }
 }
 
-fn write_varint(out: &mut Vec<u8>, mut value: u64) {
-    while value >= 0x80 {
-        out.push((value as u8) | 0x80);
-        value >>= 7;
-    }
-    out.push(value as u8);
-}
+pub fn build(sources: &Path, output: &Path) -> Result<()> {
+    fs::create_dir_all(sources)?;
+    let countries = fetch_text(sources, "countryInfo.txt", "dump/countryInfo.txt")?;
+    let admin1 = fetch_text(sources, "admin1.txt", "dump/admin1CodesASCII.txt")?;
+    let admin2 = fetch_text(sources, "admin2.txt", "dump/admin2Codes.txt")?;
+    let cities = fetch(sources, "cities500.zip", "dump/cities500.zip")?;
+    let postal = fetch(sources, "postal.zip", "zip/allCountries.zip")?;
 
-fn zigzag(value: i64) -> u64 {
-    ((value << 1) ^ (value >> 63)) as u64
-}
-
-fn build_binary(input: BuildInput) -> Vec<u8> {
     let mut strings = Strings::default();
     strings.intern("");
-
-    let cc_list: Vec<String> = input.cc_table.iter().map(|c| c.iso2.clone()).collect();
-    let cc_to_idx: FxHashMap<String, u16> = cc_list
-        .iter()
-        .enumerate()
-        .map(|(i, c)| (c.clone(), i as u16))
-        .collect();
-
-    let mut admin1_lookup: FxHashMap<(u16, String), u32> = FxHashMap::default();
-    for (key, name) in &input.admin1_map {
-        let parts: Vec<&str> = key.splitn(2, '.').collect();
-        if parts.len() != 2 {
-            continue;
-        }
-        let cc = *cc_to_idx.get(parts[0]).unwrap_or(&0);
-        let idx = strings.intern(name);
-        admin1_lookup.insert((cc, parts[1].to_string()), idx);
-    }
-
-    let mut admin2_lookup: FxHashMap<(u16, String, String), u32> = FxHashMap::default();
-    for (key, name) in &input.admin2_map {
-        let parts: Vec<&str> = key.splitn(3, '.').collect();
-        if parts.len() != 3 {
-            continue;
-        }
-        let cc = *cc_to_idx.get(parts[0]).unwrap_or(&0);
-        let idx = strings.intern(name);
-        admin2_lookup.insert((cc, parts[1].to_string(), parts[2].to_string()), idx);
-    }
-
-    let admin1_code_idx: FxHashMap<String, u32> = input
-        .admin1_map
-        .keys()
-        .map(|key| {
-            let parts: Vec<&str> = key.splitn(2, '.').collect();
-            (key.clone(), strings.intern(parts.get(1).unwrap_or(&"")))
+    let mut countries = parse_countries(&countries, &mut strings);
+    let admin_names: HashMap<&str, &str> = admin1
+        .lines()
+        .chain(admin2.lines())
+        .filter_map(|line| {
+            let mut columns = line.split('\t');
+            Some((columns.next()?, columns.next()?))
         })
         .collect();
 
-    let mut cities_by_cell: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-    for (i, city) in input.cities.iter().enumerate() {
-        cities_by_cell
-            .entry(cell_of(city.lat, city.lon))
-            .or_default()
-            .push(i);
+    let cities = unzip(&cities, "cities500.txt")?;
+    let cities = parse_cities(&cities, &admin_names, &countries, &mut strings);
+    let postal = unzip(&postal, "allCountries.txt")?;
+    let postal = parse_postal(&postal, &mut countries, &mut strings);
+
+    fs::write(output, encode(strings, countries, cities, postal))?;
+    Ok(())
+}
+
+fn fetch(sources: &Path, name: &str, url_path: &str) -> Result<Vec<u8>> {
+    let path = sources.join(name);
+    if path.exists() {
+        return Ok(fs::read(path)?);
     }
+    let mut bytes = Vec::new();
+    ureq::get(format!("{DUMP_URL}/{url_path}"))
+        .call()?
+        .into_body()
+        .into_reader()
+        .read_to_end(&mut bytes)?;
+    fs::write(path, &bytes)?;
+    Ok(bytes)
+}
 
-    let mut cities_blob = Vec::new();
-    let mut grid_entries: Vec<(u32, u32)> = Vec::new();
-    for (cell, idxs) in &cities_by_cell {
-        let mut sorted: Vec<usize> = idxs.clone();
-        sorted.sort_by_key(|&i| {
-            (
-                (input.cities[i].lat * 1e6) as i64,
-                (input.cities[i].lon * 1e6) as i64,
-            )
-        });
-        let offset = cities_blob.len() as u32;
-        write_varint(&mut cities_blob, sorted.len() as u64);
-        let mut prev_lat = 0i64;
-        let mut prev_lon = 0i64;
-        for &i in &sorted {
-            let city = &input.cities[i];
-            let cc = *cc_to_idx.get(&city.cc).unwrap_or(&0);
-            let name_idx = strings.intern(&city.name);
-            let a1_idx = *admin1_lookup.get(&(cc, city.a1.clone())).unwrap_or(&0);
-            let a2_idx = *admin2_lookup
-                .get(&(cc, city.a1.clone(), city.a2.clone()))
-                .unwrap_or(&0);
-            let a1_code_idx = *admin1_code_idx
-                .get(&format!("{}.{}", city.cc, city.a1))
-                .unwrap_or(&0);
-            let tz_idx = strings.intern(&city.tz);
-            let lat = (city.lat * 1e6) as i64;
-            let lon = (city.lon * 1e6) as i64;
-            write_varint(&mut cities_blob, zigzag(lat - prev_lat));
-            write_varint(&mut cities_blob, zigzag(lon - prev_lon));
-            prev_lat = lat;
-            prev_lon = lon;
-            write_varint(&mut cities_blob, name_idx as u64);
-            write_varint(&mut cities_blob, a1_idx as u64);
-            write_varint(&mut cities_blob, a2_idx as u64);
-            write_varint(&mut cities_blob, a1_code_idx as u64);
-            write_varint(&mut cities_blob, tz_idx as u64);
-            write_varint(&mut cities_blob, cc as u64);
-        }
-        grid_entries.push((*cell as u32, offset));
+fn fetch_text(sources: &Path, name: &str, url_path: &str) -> Result<String> {
+    Ok(String::from_utf8(fetch(sources, name, url_path)?)?)
+}
+
+fn unzip(archive: &[u8], name: &str) -> Result<String> {
+    let mut text = String::new();
+    zip::ZipArchive::new(Cursor::new(archive))?
+        .by_name(name)?
+        .read_to_string(&mut text)?;
+    Ok(text)
+}
+
+fn continent_name(code: &str) -> &'static str {
+    match code {
+        "AF" => "Africa",
+        "AN" => "Antarctica",
+        "AS" => "Asia",
+        "EU" => "Europe",
+        "NA" => "North America",
+        "OC" => "Oceania",
+        "SA" => "South America",
+        _ => "",
     }
+}
 
-    let mut postal_by_country: BTreeMap<u16, Vec<&PostalEntry>> = BTreeMap::new();
-    for entry in &input.postal {
-        let cc = *cc_to_idx.get(&entry.cc).unwrap_or(&0);
-        postal_by_country.entry(cc).or_default().push(entry);
-    }
-
-    let mut postal_blob = Vec::new();
-    let mut postal_dir: Vec<(u16, u32, u32)> = Vec::new();
-    for (cc, list) in &postal_by_country {
-        let mut admin_tuples: Vec<(u32, u32, u32)> = Vec::new();
-        let mut admin_tuple_map: FxHashMap<(u32, u32, u32), u32> = FxHashMap::default();
-        let mut postal_strings: Vec<&str> = Vec::new();
-        let mut postal_str_map: FxHashMap<&str, u32> = FxHashMap::default();
-        let mut entries: Vec<(i64, i64, u32, u32)> = Vec::with_capacity(list.len());
-        for entry in list {
-            let a1_idx = *admin1_lookup.get(&(*cc, entry.a1.clone())).unwrap_or(&0);
-            let a2_idx = *admin2_lookup
-                .get(&(*cc, entry.a1.clone(), entry.a2.clone()))
-                .unwrap_or(&0);
-            let a1c = *admin1_code_idx
-                .get(&format!("{}.{}", entry.cc, entry.a1))
-                .unwrap_or(&0);
-            let key = (a1_idx, a2_idx, a1c);
-            let tup_idx = *admin_tuple_map.entry(key).or_insert_with(|| {
-                admin_tuples.push(key);
-                (admin_tuples.len() - 1) as u32
-            });
-            let ps_idx = *postal_str_map
-                .entry(entry.postal.as_str())
-                .or_insert_with(|| {
-                    postal_strings.push(entry.postal.as_str());
-                    (postal_strings.len() - 1) as u32
-                });
-            entries.push((
-                (entry.lat * 1e6) as i64,
-                (entry.lon * 1e6) as i64,
-                ps_idx,
-                tup_idx,
-            ));
-        }
-
-        entries.sort_by_key(|e| (pcell_of(e.0 as f64 / 1e6, e.1 as f64 / 1e6), e.0, e.1));
-
-        let mut order: Vec<u32> = (0..postal_strings.len() as u32).collect();
-        order.sort_by(|&a, &b| postal_strings[a as usize].cmp(postal_strings[b as usize]));
-        let mut new_idx = vec![0u32; postal_strings.len()];
-        for (new, &old) in order.iter().enumerate() {
-            new_idx[old as usize] = new as u32;
-        }
-        let sorted_postals: Vec<&str> = order.iter().map(|&o| postal_strings[o as usize]).collect();
-
-        let start = postal_blob.len() as u32;
-        postal_blob.extend_from_slice(&(admin_tuples.len() as u32).to_le_bytes());
-        for (a1_idx, a2_idx, a1c) in &admin_tuples {
-            postal_blob.extend_from_slice(&a1_idx.to_le_bytes());
-            postal_blob.extend_from_slice(&a2_idx.to_le_bytes());
-            postal_blob.extend_from_slice(&a1c.to_le_bytes());
-        }
-        postal_blob.extend_from_slice(&(sorted_postals.len() as u32).to_le_bytes());
-        let mut ps_offsets: Vec<u32> = Vec::with_capacity(sorted_postals.len() + 1);
-        let mut ps_body: Vec<u8> = Vec::new();
-        for s in &sorted_postals {
-            ps_offsets.push(ps_body.len() as u32);
-            ps_body.extend_from_slice(s.as_bytes());
-        }
-        ps_offsets.push(ps_body.len() as u32);
-        for o in &ps_offsets {
-            postal_blob.extend_from_slice(&o.to_le_bytes());
-        }
-        postal_blob.extend_from_slice(&ps_body);
-
-        let mut groups: BTreeMap<u32, Vec<&(i64, i64, u32, u32)>> = BTreeMap::new();
-        for entry in &entries {
-            let cell = pcell_of(entry.0 as f64 / 1e6, entry.1 as f64 / 1e6);
-            groups.entry(cell).or_default().push(entry);
-        }
-        let mut body: Vec<u8> = Vec::new();
-        let mut cell_dir: Vec<(u32, u32)> = Vec::new();
-        for (cell, list) in &groups {
-            let offset = body.len() as u32;
-            cell_dir.push((*cell, offset));
-            write_varint(&mut body, list.len() as u64);
-            let mut prev_lat = 0i64;
-            let mut prev_lon = 0i64;
-            for (lat, lon, postal_idx, tuple_idx) in list {
-                write_varint(&mut body, zigzag(lat - prev_lat));
-                write_varint(&mut body, zigzag(lon - prev_lon));
-                prev_lat = *lat;
-                prev_lon = *lon;
-                write_varint(&mut body, new_idx[*postal_idx as usize] as u64);
-                write_varint(&mut body, *tuple_idx as u64);
-            }
-        }
-        write_varint(&mut postal_blob, cell_dir.len() as u64);
-        let mut prev_cell = 0u32;
-        let mut prev_offset = 0u32;
-        for (cell, offset) in &cell_dir {
-            write_varint(&mut postal_blob, (*cell - prev_cell) as u64);
-            write_varint(&mut postal_blob, (*offset - prev_offset) as u64);
-            prev_cell = *cell;
-            prev_offset = *offset;
-        }
-        postal_blob.extend_from_slice(&body);
-        let end = postal_blob.len() as u32;
-        postal_dir.push((*cc, start, end));
-    }
-
-    let mut poly_blob = Vec::new();
-    let mut poly_dir: Vec<(u16, u32, u32)> = Vec::new();
-    for polygon in &input.polys {
-        let cc = *cc_to_idx.get(&polygon.iso2).unwrap_or(&0);
-        if cc == 0 {
+fn parse_countries(text: &str, strings: &mut Strings) -> HashMap<String, Country> {
+    let mut countries = HashMap::new();
+    for line in text.lines().filter(|line| !line.starts_with('#')) {
+        let columns: Vec<&str> = line.split('\t').collect();
+        if columns.len() < 11 {
             continue;
         }
-        let start = poly_blob.len() as u32;
-        write_varint(&mut poly_blob, polygon.rings.len() as u64);
-        for ring in &polygon.rings {
-            write_varint(&mut poly_blob, ring.len() as u64);
-            let mut min_lat = i32::MAX;
-            let mut max_lat = i32::MIN;
-            let mut min_lon = i32::MAX;
-            let mut max_lon = i32::MIN;
-            for &(lat, lon) in ring {
-                let li = (lat * 1e5) as i32;
-                let lo = (lon * 1e5) as i32;
-                min_lat = min_lat.min(li);
-                max_lat = max_lat.max(li);
-                min_lon = min_lon.min(lo);
-                max_lon = max_lon.max(lo);
-            }
-            poly_blob.extend_from_slice(&min_lat.to_le_bytes());
-            poly_blob.extend_from_slice(&max_lat.to_le_bytes());
-            poly_blob.extend_from_slice(&min_lon.to_le_bytes());
-            poly_blob.extend_from_slice(&max_lon.to_le_bytes());
-            let mut prev_lat = 0i64;
-            let mut prev_lon = 0i64;
-            for &(lat, lon) in ring {
-                let li = (lat * 1e5) as i64;
-                let lo = (lon * 1e5) as i64;
-                write_varint(&mut poly_blob, zigzag(li - prev_lat));
-                write_varint(&mut poly_blob, zigzag(lo - prev_lon));
-                prev_lat = li;
-                prev_lon = lo;
+        let column = |index: usize| columns.get(index).copied().unwrap_or("");
+        let texts = [
+            column(0),
+            column(1),
+            column(2),
+            column(4),
+            column(5),
+            column(6),
+            column(7),
+            column(8),
+            continent_name(column(8)),
+            column(9),
+            column(10),
+            column(11),
+            column(12),
+            column(13),
+            column(15),
+            column(17),
+        ];
+        let mut row = texts.map(|text| strings.intern(text)).to_vec();
+        row.push(EUROPEAN_UNION.contains(&column(0)) as u32);
+        let id = countries.len() as u32;
+        let country = Country {
+            id,
+            row,
+            postal_codes: 0,
+        };
+        countries.insert(column(0).to_string(), country);
+    }
+    countries
+}
+
+fn microdegrees(text: &str) -> Option<i32> {
+    let degrees: f64 = text.parse().ok()?;
+    Some((degrees * 1e6).round() as i32)
+}
+
+fn zigzag(value: i32) -> u32 {
+    ((value << 1) ^ (value >> 31)) as u32
+}
+
+fn elevation(columns: &[&str]) -> u32 {
+    let measured = columns[15].parse().ok();
+    let modelled = columns[16]
+        .parse()
+        .ok()
+        .filter(|&value: &i32| value != -9999);
+    measured.or(modelled).map_or(0, |value| zigzag(value) + 1)
+}
+
+fn parse_cities(
+    text: &str,
+    admin_names: &HashMap<&str, &str>,
+    countries: &HashMap<String, Country>,
+    strings: &mut Strings,
+) -> Vec<Point> {
+    let mut points = Vec::new();
+    for line in text.lines() {
+        let columns: Vec<&str> = line.split('\t').collect();
+        if columns.len() < 18 {
+            continue;
+        }
+        let (country, admin1, admin2) = (columns[8], columns[10], columns[11]);
+        let Some(country) = countries.get(country) else {
+            continue;
+        };
+        let (Some(latitude), Some(longitude)) =
+            (microdegrees(columns[4]), microdegrees(columns[5]))
+        else {
+            continue;
+        };
+        let region_key = format!("{}.{admin1}", columns[8]);
+        let district_key = format!("{region_key}.{admin2}");
+        let name_of = |key: &str| admin_names.get(key).copied().unwrap_or("");
+        let fields = vec![
+            strings.intern(columns[1]),
+            strings.intern(columns[2]),
+            strings.intern(name_of(&region_key)),
+            strings.intern(admin1),
+            strings.intern(name_of(&district_key)),
+            strings.intern(admin2),
+            strings.intern(columns[17]),
+            country.id,
+            strings.intern(columns[7]),
+            columns[14].parse().unwrap_or(0),
+            elevation(&columns),
+            columns[0].parse().unwrap_or(0),
+        ];
+        points.push(Point {
+            latitude,
+            longitude,
+            fields,
+        });
+    }
+    points
+}
+
+fn parse_postal(
+    text: &str,
+    countries: &mut HashMap<String, Country>,
+    strings: &mut Strings,
+) -> Vec<Point> {
+    let mut points = Vec::new();
+    for line in text.lines() {
+        let columns: Vec<&str> = line.split('\t').collect();
+        if columns.len() < 11 {
+            continue;
+        }
+        let Some(country) = countries.get_mut(columns[0]) else {
+            continue;
+        };
+        let (Some(latitude), Some(longitude)) =
+            (microdegrees(columns[9]), microdegrees(columns[10]))
+        else {
+            continue;
+        };
+        country.postal_codes += 1;
+        let fields = vec![
+            strings.intern(columns[1]),
+            country.id,
+            strings.intern(columns[2]),
+            strings.intern(columns[7]),
+        ];
+        points.push(Point {
+            latitude,
+            longitude,
+            fields,
+        });
+    }
+    points
+}
+
+fn cell_of(point: &Point, cells_per_degree: u32) -> u32 {
+    let scale = cells_per_degree as f64 / 1e6;
+    let rows = 180 * cells_per_degree;
+    let columns = 360 * cells_per_degree;
+    let row = ((point.latitude as f64 + 90e6) * scale) as u32;
+    let column = ((point.longitude as f64 + 180e6) * scale) as u32;
+    row.min(rows - 1) * columns + column.min(columns - 1)
+}
+
+fn write_varint(output: &mut Vec<u8>, mut value: u32) {
+    while value >= 0x80 {
+        output.push(value as u8 | 0x80);
+        value >>= 7;
+    }
+    output.push(value as u8);
+}
+
+fn encode_layer(points: Vec<Point>, cells_per_degree: u32) -> (Vec<u32>, Vec<u8>) {
+    let mut cells: BTreeMap<u32, Vec<Point>> = BTreeMap::new();
+    for point in points {
+        cells
+            .entry(cell_of(&point, cells_per_degree))
+            .or_default()
+            .push(point);
+    }
+    let mut directory = Vec::new();
+    let mut body = Vec::new();
+    for (cell, mut points) in cells {
+        points.sort_by_key(|point| (point.latitude, point.longitude));
+        directory.extend([cell, body.len() as u32]);
+        write_varint(&mut body, points.len() as u32);
+        let (mut latitude, mut longitude) = (0, 0);
+        for point in points {
+            write_varint(&mut body, zigzag(point.latitude - latitude));
+            write_varint(&mut body, zigzag(point.longitude - longitude));
+            (latitude, longitude) = (point.latitude, point.longitude);
+            for field in point.fields {
+                write_varint(&mut body, field);
             }
         }
-        let end = poly_blob.len() as u32;
-        poly_dir.push((cc, start, end));
+    }
+    (directory, body)
+}
+
+fn append(output: &mut Vec<u8>, bytes: &[u8]) -> u32 {
+    output.resize(output.len().next_multiple_of(4), 0);
+    let position = output.len() as u32;
+    output.extend_from_slice(bytes);
+    position
+}
+
+fn words(values: &[u32]) -> Vec<u8> {
+    values
+        .iter()
+        .flat_map(|value| value.to_le_bytes())
+        .collect()
+}
+
+fn encode(
+    strings: Strings,
+    countries: HashMap<String, Country>,
+    cities: Vec<Point>,
+    postal: Vec<Point>,
+) -> Vec<u8> {
+    let mut offsets = vec![0];
+    let mut text = Vec::new();
+    for string in &strings.list {
+        text.extend_from_slice(string.as_bytes());
+        offsets.push(text.len() as u32);
     }
 
-    let strings_blob = encode_strings(&strings.list);
+    let mut countries: Vec<Country> = countries.into_values().collect();
+    countries.sort_by_key(|country| country.id);
+    let rows: Vec<Vec<u32>> = countries
+        .into_iter()
+        .map(|country| [country.row, vec![country.postal_codes]].concat())
+        .collect();
 
-    let mut out = Vec::new();
-    out.extend_from_slice(MAGIC);
-    out.extend_from_slice(&1u32.to_le_bytes());
-
-    let mut placeholders = Vec::new();
-    for _ in 0..12 {
-        placeholders.push(out.len());
-        out.extend_from_slice(&0u32.to_le_bytes());
-    }
-    while out.len() % 8 != 0 {
-        out.push(0);
-    }
-
-    let off_str = out.len() as u32;
-    out.extend_from_slice(&strings_blob);
-    let len_str = out.len() as u32 - off_str;
-
-    pad4(&mut out);
-    let off_cc = out.len() as u32;
-    out.extend_from_slice(&(cc_list.len() as u32).to_le_bytes());
-    for code in &cc_list {
-        let bytes = code.as_bytes();
-        out.push(*bytes.first().unwrap_or(&0));
-        out.push(*bytes.get(1).unwrap_or(&0));
-    }
-    let len_cc = out.len() as u32 - off_cc;
-
-    pad4(&mut out);
-    let off_grid = out.len() as u32;
-    out.extend_from_slice(&(grid_entries.len() as u32).to_le_bytes());
-    let mut prev_cell = 0u32;
-    let mut prev_offset = 0u32;
-    for (cell, offset) in &grid_entries {
-        write_varint(&mut out, (*cell - prev_cell) as u64);
-        write_varint(&mut out, (*offset - prev_offset) as u64);
-        prev_cell = *cell;
-        prev_offset = *offset;
-    }
-    let len_grid = out.len() as u32 - off_grid;
-
-    let off_cities = out.len() as u32;
-    out.extend_from_slice(&cities_blob);
-    let len_cities = out.len() as u32 - off_cities;
-
-    pad4(&mut out);
-    let off_pdir = out.len() as u32;
-    out.extend_from_slice(&(postal_dir.len() as u32).to_le_bytes());
-    for (cc, start, end) in &postal_dir {
-        out.extend_from_slice(&cc.to_le_bytes());
-        out.extend_from_slice(&[0u8, 0]);
-        out.extend_from_slice(&start.to_le_bytes());
-        out.extend_from_slice(&end.to_le_bytes());
-    }
-    let len_pdir = out.len() as u32 - off_pdir;
-
-    let off_postal = out.len() as u32;
-    out.extend_from_slice(&postal_blob);
-    let len_postal = out.len() as u32 - off_postal;
-
-    pad4(&mut out);
-    let off_polydir = out.len() as u32;
-    out.extend_from_slice(&(poly_dir.len() as u32).to_le_bytes());
-    for (cc, start, end) in &poly_dir {
-        out.extend_from_slice(&cc.to_le_bytes());
-        out.extend_from_slice(&[0u8, 0]);
-        out.extend_from_slice(&start.to_le_bytes());
-        out.extend_from_slice(&end.to_le_bytes());
-    }
-    let len_polydir = out.len() as u32 - off_polydir;
-
-    let off_poly = out.len() as u32;
-    out.extend_from_slice(&poly_blob);
-    let len_poly = out.len() as u32 - off_poly;
-
-    let header_values = [
-        off_str, len_str, off_cc, len_cc, off_grid, len_grid, off_cities, len_cities, off_pdir,
-        len_pdir, off_postal, len_postal,
+    let mut output = vec![0; 4 * HEADER_WORDS];
+    let mut header = vec![u32::from_le_bytes(*MAGIC), strings.list.len() as u32];
+    header.push(append(&mut output, &words(&offsets)));
+    header.push(append(&mut output, &text));
+    header.extend([rows.len() as u32, rows[0].len() as u32]);
+    header.push(append(&mut output, &words(&rows.concat())));
+    let layers = [
+        (cities, CITY_CELLS_PER_DEGREE),
+        (postal, POSTAL_CELLS_PER_DEGREE),
     ];
-    for (i, value) in header_values.iter().enumerate() {
-        let position = placeholders[i];
-        out[position..position + 4].copy_from_slice(&value.to_le_bytes());
+    for (points, cells_per_degree) in layers {
+        let field_count = points.first().map_or(0, |point| point.fields.len());
+        let (directory, body) = encode_layer(points, cells_per_degree);
+        header.push((directory.len() / 2) as u32);
+        header.push(append(&mut output, &words(&directory)));
+        header.push(append(&mut output, &body));
+        header.extend([cells_per_degree, field_count as u32]);
     }
-
-    out.extend_from_slice(&off_polydir.to_le_bytes());
-    out.extend_from_slice(&len_polydir.to_le_bytes());
-    out.extend_from_slice(&off_poly.to_le_bytes());
-    out.extend_from_slice(&len_poly.to_le_bytes());
-
-    out
-}
-
-fn pad4(out: &mut Vec<u8>) {
-    while out.len() % 4 != 0 {
-        out.push(0);
-    }
-}
-
-fn encode_strings(list: &[String]) -> Vec<u8> {
-    let mut out = Vec::new();
-    out.extend_from_slice(&(list.len() as u32).to_le_bytes());
-    let mut offsets: Vec<u32> = Vec::with_capacity(list.len() + 1);
-    let mut body: Vec<u8> = Vec::new();
-    for value in list {
-        offsets.push(body.len() as u32);
-        body.extend_from_slice(value.as_bytes());
-    }
-    offsets.push(body.len() as u32);
-    for offset in &offsets {
-        out.extend_from_slice(&offset.to_le_bytes());
-    }
-    out.extend_from_slice(&body);
-    out
+    output[..4 * HEADER_WORDS].copy_from_slice(&words(&header));
+    output
 }
