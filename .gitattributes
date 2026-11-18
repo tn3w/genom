@@ -1,0 +1,3 @@
+docs-src/** linguist-documentation
+data/** linguist-vendored
+lookup.py linguist-vendored
